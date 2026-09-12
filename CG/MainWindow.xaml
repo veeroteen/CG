@@ -1,0 +1,22 @@
+﻿<Window x:Class="CG.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CG" xmlns:sharpgl="clr-namespace:SharpGL.WPF;assembly=SharpGL.WPF"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid Background="DimGray">
+
+        <!-- Элемент SharpGL с отступами (Margin) в 50 пикселей со всех сторон -->
+        <sharpgl:OpenGLControl x:Name="openGLControl" 
+                               Margin="5,0,5,5"
+                               DrawFPS="True"
+                               OpenGLInitialized="OpenGLControl_OpenGLInitialized" 
+                               OpenGLDraw="OpenGLControl_OpenGLDraw"
+                               MouseDown="Mouse_Down"
+                               MouseWheel="Mouse_Wheel"
+                               />
+
+    </Grid>
+</Window>
