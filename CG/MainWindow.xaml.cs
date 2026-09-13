@@ -24,19 +24,29 @@ namespace CG // Укажите ваше имя проекта
 
         private void OpenGLControl_OpenGLDraw(object sender, SharpGL.WPF.OpenGLRoutedEventArgs args)
         {
-            Vector2 size = new Vector2((float)openGLControl.ActualWidth, (float)openGLControl.ActualHeight);
-            if (size.X <= 0 || size.Y <= 0) return;
+            if (Configs.Size.X <= 0 || Configs.Size.Y <= 0) return;
             Vector2 mousePosition = Mouse.GetPosition(openGLControl).ToVector2();
 
-            handler.Update(size, mousePosition);
+            handler.Update(mousePosition);
         }
-        private void Mouse_Down(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void openGLControl_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             handler.MouseClick();
         }
-        private void Mouse_Wheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        private void openGLControl_MouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
         {
             handler.ChangeScale(e.Delta > 0 ? 1 : -1);
         }
+
+        private void openGLControl_KeyDown(object sender, KeyEventArgs e)
+        {
+
+        }
+
+        private void openGLControl_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            Configs.changeSize(new Vector2((float)openGLControl.ActualWidth, (float)openGLControl.ActualHeight));
+        }
+
     }
 }

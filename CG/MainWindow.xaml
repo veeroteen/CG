@@ -14,8 +14,10 @@
                                DrawFPS="True"
                                OpenGLInitialized="OpenGLControl_OpenGLInitialized" 
                                OpenGLDraw="OpenGLControl_OpenGLDraw"
-                               MouseDown="Mouse_Down"
-                               MouseWheel="Mouse_Wheel"
+                               MouseDown="openGLControl_MouseDown"
+                               MouseWheel="openGLControl_MouseWheel"
+                               Keyboard.KeyDown="openGLControl_KeyDown"
+                               SizeChanged="openGLControl_SizeChanged"
                                />
 
     </Grid>

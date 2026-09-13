@@ -1,50 +1,106 @@
-﻿using System;
+﻿using SharpGL.WPF;
+using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Drawing;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace CG
 {
-    enum DrawState 
+    public enum DRAWSTATE 
     {
         MESH,
         POLYGON
+    }
+    public enum CURSORSTATE 
+    {
+        FREE,
+        DRAW
+    }
+    public enum INTERSECTION 
+    {
+        NONE,
+        BOX,
+        DOT,
+        LINE,
+        BODY
+    }
+
+
+    public static class Configs 
+    {
+        private static float _mouseRadius = 4;
+        public static ref readonly float MouseRadius => ref _mouseRadius;
+        public static void changeRadius(float radius)
+        {
+            _mouseRadius = radius;
+            calcoffset();
+        }
+        private static void calcoffset()
+        {
+            float distance = Math.Abs(_cameraZ);
+            float visibleHeight = (float)(2.0 * Math.Tan(22.5 * Math.PI / 180.0) * distance);
+            _offset = (_mouseRadius / _size.Y) * visibleHeight;
+        } 
+        private static float _offset = 0;
+        public static ref readonly float Offset => ref _offset;
+
+
+        private static Vector2 _size = new Vector2(0, 0);
+        public static ref readonly Vector2 Size => ref _size;
+        public static void changeSize(Vector2 size)
+        {
+            _size = size;
+            calcoffset();
+        }
+
+
+        private static float _cameraZ = -5.0f;
+        public static ref readonly float CameraZ => ref _cameraZ;
+        public static void changeCameraZ(float z)
+        {
+            _cameraZ = z;
+            calcoffset();
+        }
+
+
     }
 
     public static class Translator 
     {
 
-        public static Vector3 toScreen(Vector3 cords, Vector2 size, float cameaZ)
+        public static Vector3 toScreen(Vector3 cords, float cameaZ)
         {
-            float ndcX = (2.0f * cords.X / size.X) - 1.0f;
-            float ndcY = 1.0f - (2.0f * cords.Y / size.Y);
+            float ndcX = (2.0f * cords.X / Configs.Size.X) - 1.0f;
+            float ndcY = 1.0f - (2.0f * cords.Y / Configs.Size.Y);
 
             float visibleHeight = (float)(2.0 * Math.Tan(22.5 * Math.PI / 180.0) * Math.Abs(cameaZ));
-            float visibleWidth = visibleHeight * (size.X / size.Y);
+            float visibleWidth = visibleHeight * (Configs.Size.X / Configs.Size.Y);
             return new Vector3(ndcX * (visibleWidth / 2.0f), ndcY * (visibleHeight / 2.0f),cords.Z);
 
         }
-        public static Vector2 toScreen(Vector2 cords, Vector2 size, float cameaZ)
+        public static Vector3 toScreen(Vector2 cords, float cameaZ)
         {
-            float ndcX = (2.0f * cords.X / size.X) - 1.0f;
-            float ndcY = 1.0f - (2.0f * cords.Y / size.Y);
+            float ndcX = (2.0f * cords.X / Configs.Size.X) - 1.0f;
+            float ndcY = 1.0f - (2.0f * cords.Y / Configs.Size.Y);
 
             float visibleHeight = (float)(2.0 * Math.Tan(22.5 * Math.PI / 180.0) * Math.Abs(cameaZ));
-            float visibleWidth = visibleHeight * (size.X / size.Y);
-            return new Vector2(ndcX * (visibleWidth / 2.0f), ndcY * (visibleHeight / 2.0f));
+            float visibleWidth = visibleHeight * (Configs.Size.X / Configs.Size.Y);
+            return new Vector3(ndcX * (visibleWidth / 2.0f), ndcY * (visibleHeight / 2.0f),0);
 
         }
+
+
     }
 
-    class Primitive
+    public class Primitive
     {
         private List<Vector3> Dots;
         private Rect _box;
-
+        public bool closed { private set; get; }
         public Vector3 color;
         public ref readonly Rect Box => ref _box;
         public Primitive()
@@ -61,28 +117,31 @@ namespace CG
 
         public void addDot(Vector3 dot) 
         {
-            Dots.Add(dot);
-            _box.Left =  dot.X > _box.Left ? _box.Left : dot.X;
-            _box.Right = dot.X < _box.Right ? _box.Right : dot.X; 
-            _box.Top = dot.Y < _box.Top ? _box.Top : dot.Y;
-            _box.Bottom = dot.Y > _box.Bottom ? _box.Bottom : dot.Y;
+            if (dot == Dots[getAmOfDots() - 1] && getAmOfDots() > 1)
+            {
+                closed = true;
+            }
+            else
+            {
+                Dots.Add(dot);
+                recalcBox();
+            }
         }
 
         public void changeDotPosFlow(Vector3 dot,int i)
         {
             Dots[i] = dot;
         }
-        public void RecalcBox()
+        public void recalcBox()
         {
-            
             foreach (var dot in Dots)
             {
                 _box.Left = dot.X > _box.Left ? _box.Left : dot.X;
                 _box.Right = dot.X < _box.Right ? _box.Right : dot.X;
-                
                 _box.Bottom = dot.Y > _box.Bottom ? _box.Bottom : dot.Y;
                 _box.Top = dot.Y < _box.Top ? _box.Top : dot.Y;
             }
+
         }
         public ReadOnlySpan<Vector3> getDots()
         {
@@ -92,6 +151,47 @@ namespace CG
         {
             return Dots.Count;
         }
+
+        public (INTERSECTION Type, int DotIndex) intersect(Vector3 cords) 
+        {
+
+            float offset = Configs.Offset;
+            if (
+                Collision.RectCollision(_box,cords,offset)
+               )
+            {
+
+                for (int i = 0;  i < Dots.Count; i++) 
+                {
+                    if (Collision.DotCollision(Dots[i],cords,offset)) 
+                    {
+                        return (INTERSECTION.DOT, i);
+                    }
+                }
+
+                for (int i = 0; i < Dots.Count - 1; i++)
+                {
+                    if (Collision.LineCollision(Dots[i], Dots[i+1],cords))
+                    {
+                        return (INTERSECTION.LINE, -1);
+                    }
+                }
+                if (closed) 
+                {
+                    if (Collision.LineCollision(Dots[0], Dots[getAmOfDots()-1], cords))
+                    {
+                        return (INTERSECTION.LINE, -1);
+                    }
+                    if (Collision.PolygonCollision(this, cords)) 
+                    {
+                        return (INTERSECTION.BODY, -1);
+                    }
+                }
+            }
+            return (INTERSECTION.NONE ,- 1);
+        }
+
+
 
     }
 }
