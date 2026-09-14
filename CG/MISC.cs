@@ -15,6 +15,19 @@ namespace CG
         }
     }
 
+    public struct Pair<L,R>
+    {
+        public L left;
+        public R right;
+        
+        public Pair(L left,R right)
+        {
+            this.left = left;
+            this.right = right;
+        }
+
+    }
+
     public struct Rect 
     {
         public float Left, Top, Right, Bottom;
@@ -29,11 +42,11 @@ namespace CG
 
     public struct Collision
     {
-        public readonly INTERSECTION Type;
+        public readonly TYPE Type;
         public readonly int DotIndex;
         public Primitive primitive;
 
-        public Collision(INTERSECTION Type,int DotIndex,Primitive primitive)
+        public Collision(TYPE Type,int DotIndex,Primitive primitive)
         {
             this.Type = Type;
             this.DotIndex = DotIndex;
@@ -66,7 +79,6 @@ namespace CG
         public static bool LineCollision(Vector3 lineStart, Vector3 lineEnd, Vector3 dot) 
         {
             float offset = Configs.Offset;
-
             float lineX = lineEnd.X - lineStart.X;
             float lineY = lineEnd.Y - lineStart.Y;
 

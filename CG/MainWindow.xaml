@@ -10,13 +10,16 @@
 
         <!-- Элемент SharpGL с отступами (Margin) в 50 пикселей со всех сторон -->
         <sharpgl:OpenGLControl x:Name="openGLControl" 
+                               Focusable="True" 
                                Margin="5,0,5,5"
                                DrawFPS="True"
                                OpenGLInitialized="OpenGLControl_OpenGLInitialized" 
                                OpenGLDraw="OpenGLControl_OpenGLDraw"
                                MouseDown="openGLControl_MouseDown"
+                               MouseUp="openGLControl_MouseUp"
                                MouseWheel="openGLControl_MouseWheel"
                                Keyboard.KeyDown="openGLControl_KeyDown"
+                               Keyboard.KeyUp="openGLControl_KeyUp"
                                SizeChanged="openGLControl_SizeChanged"
                                />
 

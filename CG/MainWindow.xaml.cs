@@ -14,6 +14,7 @@ namespace CG // Укажите ваше имя проекта
         public MainWindow()
         {
             InitializeComponent();
+            openGLControl.Focus();
         }
 
         private void OpenGLControl_OpenGLInitialized(object sender, EventArgs e)
@@ -31,7 +32,31 @@ namespace CG // Укажите ваше имя проекта
         }
         private void openGLControl_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            handler.MouseClick();
+            switch (e.ChangedButton)
+            {
+                case MouseButton.Left:
+                    handler.ExecuteButtonDown();
+                    break;
+                case MouseButton.Right:
+                    break;
+                case MouseButton.Middle:
+                    handler.DragCameraSwitch(true);
+                    break;
+            }
+        }
+
+        private void openGLControl_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            switch (e.ChangedButton)
+            {
+                case MouseButton.Left:
+                    break;
+                case MouseButton.Right:
+                    break;
+                case MouseButton.Middle:
+                    handler.DragCameraSwitch(false);
+                    break;
+            }
         }
         private void openGLControl_MouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
         {
@@ -40,13 +65,31 @@ namespace CG // Укажите ваше имя проекта
 
         private void openGLControl_KeyDown(object sender, KeyEventArgs e)
         {
-
+            switch (e.Key) 
+            {
+                case Key.LeftCtrl:
+                    handler.ControlKeyDown();
+                    break;
+            
+            }
         }
+        private void openGLControl_KeyUp(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.LeftCtrl:
+                    handler.ControlKeyUp();
+                    break;
+
+            }
+        }
+
 
         private void openGLControl_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             Configs.changeSize(new Vector2((float)openGLControl.ActualWidth, (float)openGLControl.ActualHeight));
         }
+
 
     }
 }

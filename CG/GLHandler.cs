@@ -10,30 +10,53 @@ using System.Threading.Tasks;
 using System.Windows.Controls;
 namespace CG
 {
+    public enum OSTATE
+    {
+        MESH,
+        POLYGON,
+    }
+    public enum ISTATE
+    {
+        FREE,
+        DRAW,
+        CONTINUOUSDRAW,
+        MOVE
+    }
+
     class GLHandler
     {
         private OpenGL gl;
         private List<Primitive> Primitives;
         private Primitive scoped;
-
-        private DRAWSTATE drawState = DRAWSTATE.MESH;
-        private CURSORSTATE cursorState;
+        private OSTATE oState = OSTATE.MESH;
+        private ISTATE iState = ISTATE.FREE;
+        private bool dragCameraState = false;
+        private Vector2 mousePosition;
         private Vector3 GLMousePosition;
         private void draw() 
         {
-            if (scoped != null)
+            if (scoped != null )
             {
                 scoped.changeDotPosFlow(new Vector3((float)GLMousePosition.X, (float)GLMousePosition.Y, 0), scoped.getAmOfDots() - 1);
             }
+            bool hovered = false;
             List<Collision> collisions = new List<Collision>();
+
             foreach (var primitive in Primitives)
             {
+                var dots = primitive.getDots();
                 var tmp = primitive.intersect(GLMousePosition);
+                if(iState == ISTATE.DRAW && tmp.Type == TYPE.BOX) 
+                {
+                    tmp.Type = TYPE.NONE;
+                }
+
+
                 //collisions.Add( new Collision(tmp.Type,tmp.DotIndex, primitive));
 
                 var color = primitive.color;
 
-
+                /*
                 if (primitive.getAmOfDots() > 2)
                 {
                     gl.Color(color.X, color.Y, color.Z);
@@ -44,45 +67,55 @@ namespace CG
                     }
                 }
                 else
+                */
                 {
-                    if (tmp.Type == INTERSECTION.LINE)
+
+                    if (tmp.Type == TYPE.EDGE && !hovered )
                     {
                         gl.Color(1.0f, 1.0f, 1.0f);
                         gl.LineWidth(4.0f);
+
+                        var edge = primitive.getEdges()[tmp.Index];
+                        
                         gl.Begin(OpenGL.GL_LINES);
-                        foreach (var dot in primitive.getDots()) { gl.Vertex(dot.X, dot.Y, dot.Z); }
+                        gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                        gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
                         gl.End();
+                        
+                        
+                        hovered = true;
                     }
 
                     gl.Color(color.X, color.Y, color.Z);
                     gl.LineWidth(1.5f);
-                    gl.Begin(OpenGL.GL_LINES);
-                    foreach (var dot in primitive.getDots())
+                    
+                    foreach (var edge in primitive.getEdges())
                     {
-                        gl.Vertex(dot.X, dot.Y, dot.Z);
+                        gl.Begin(OpenGL.GL_LINES);
+                        gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                        gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                        gl.End();
                     }
                 }
-                gl.End();
-
-
                 
-                var dotsList = primitive.getDots();
-                for (int i = 0; i < dotsList.Length; i++)
+
+                for (int i = 0; i < dots.Length; i++)
                 {
-                    if(tmp.Type == INTERSECTION.DOT && tmp.DotIndex == i) 
+                    if(tmp.Type == TYPE.DOT && tmp.Index == i && !hovered) 
                     {
                         gl.PointSize(8.0f);
                         gl.Color(1.0f, 1.0f, 1.0f);
                         gl.Begin(OpenGL.GL_POINTS);
-                        gl.Vertex(dotsList[i].X, dotsList[i].Y, dotsList[i].Z);
+                        gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
                         gl.End();
+                        hovered = true;
                     }
-                    gl.Vertex(dotsList[i].X, dotsList[i].Y, dotsList[i].Z);
+                    gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
 
                     gl.PointSize(4.0f);
                     gl.Color(0.0f, 1.0f, 0.0f);
                     gl.Begin(OpenGL.GL_POINTS);
-                    gl.Vertex(dotsList[i].X, dotsList[i].Y, dotsList[i].Z);
+                    gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
                     gl.End();
                 }
 
@@ -93,12 +126,25 @@ namespace CG
 
         public void Update( Vector2 mousePosition)
         {
-            this.GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraZ);
-
+            if (dragCameraState) 
+            {
+                float tx = GLMousePosition.X, ty = GLMousePosition.Y;
+                Vector3 tmp = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
+                tx = tmp.X - tx;
+                ty = tmp.Y - ty;
+                Configs.changeCameraPos(tx + Configs.CameraPos.X, ty + Configs.CameraPos.Y);
+                GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
+            }
+            else 
+            {
+                GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
+            }
+                
+            this.mousePosition = mousePosition;
             gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT | OpenGL.GL_DEPTH_BUFFER_BIT);
             gl.LoadIdentity();
 
-            gl.Translate(0.0f, 0.0f, Configs.CameraZ);
+            gl.Translate(Configs.CameraPos.X, Configs.CameraPos.Y, Configs.CameraPos.Z);
 
             draw();
 
@@ -113,31 +159,122 @@ namespace CG
             gl.Enable(OpenGL.GL_POINT_SMOOTH);
         }
 
-        public void MouseClick()
+        public void ExecuteButtonDown()
         {
-
             Vector3 color = new Vector3(1.0f, 0.0f, 0.0f);
             
-            Console.WriteLine($" OpenGL: X={GLMousePosition.X:F2}, Y={GLMousePosition.Y:F2}");
+            Console.WriteLine($" OpenGL: X={GLMousePosition.X:F2}, Y={GLMousePosition.Y:F2}, Y={Configs.CameraPos.Z:F2}");
 
-            if (cursorState == CURSORSTATE.DRAW) 
+            switch (iState) 
             {
-                cursorState = CURSORSTATE.FREE;
-                scoped.recalcBox();
-                scoped = null;
-            }
-            else 
-            {
-                Primitive line = new Primitive(GLMousePosition, color);
-                line.addDot(GLMousePosition);
-                scoped = line;
-                Primitives.Add(line);
-                cursorState = CURSORSTATE.DRAW;
+                case ISTATE.FREE:
+                {
+                    Primitive line = new Primitive(GLMousePosition, color);
+                    line.addDot(GLMousePosition);
+                    scoped = line;
+                    Primitives.Add(line);
+                    iState = ISTATE.DRAW;
+                    break;
+                }
+                case ISTATE.CONTINUOUSDRAW:
+                {
+                    if (scoped != null)
+                    {
+                        if (!scoped.snap())
+                        {
+                            scoped.addDot(GLMousePosition);
+                        }
+                        else 
+                        {
+                            iState = ISTATE.FREE;
+                            scoped = null;
+                        }
+                    }
+                    else 
+                    {
+                        Primitive line = new Primitive(GLMousePosition, color);
+                        line.addDot(GLMousePosition);
+                        scoped = line;
+                        Primitives.Add(line);
+                        iState = ISTATE.DRAW;
+                    }
+                    break;
+                }
+                case ISTATE.DRAW:
+                {
+                    iState = ISTATE.FREE;
+                    scoped.snap();
+                    scoped.recalcBox();
+                    scoped = null;
+                    break;
+                }
             }
         }
+        public void MiscButtonDown() 
+        {
+            
+        
+        
+        }
+
+
+        public void ControlKeyDown() 
+        {
+            switch (iState)
+            {
+                case ISTATE.FREE:
+                {
+                    iState = ISTATE.CONTINUOUSDRAW;
+                    break;
+                }
+                case ISTATE.DRAW:
+                {
+                    iState = ISTATE.CONTINUOUSDRAW;
+                    break;
+                }
+                case ISTATE.CONTINUOUSDRAW:
+                {
+                    break;
+                }
+            }
+        }
+        public void ControlKeyUp()
+        {
+            switch (iState)
+            {
+                case ISTATE.FREE:
+                {
+                    break;
+                }
+                case ISTATE.DRAW:
+                {
+                    break;
+                }
+                case ISTATE.CONTINUOUSDRAW:
+                {
+                    if (scoped != null)
+                    {
+                        iState = ISTATE.DRAW;
+                    }
+                    else 
+                    {
+                        iState = ISTATE.FREE;
+                    }
+                    break;
+                }
+            }
+
+        }
+
+
+        public void DragCameraSwitch(bool state) 
+        {
+            dragCameraState = state;
+        }
+
         public void ChangeScale(int zoom, float amount = 0.25f)
         {
-            float cameraZ = Configs.CameraZ;
+            float cameraZ = Configs.CameraPos.Z;
             cameraZ += zoom * amount;
             
             if (cameraZ > -0.25f) 

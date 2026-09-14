@@ -10,22 +10,13 @@ using System.Threading.Tasks;
 
 namespace CG
 {
-    public enum DRAWSTATE 
-    {
-        MESH,
-        POLYGON
-    }
-    public enum CURSORSTATE 
-    {
-        FREE,
-        DRAW
-    }
-    public enum INTERSECTION 
+
+    public enum TYPE 
     {
         NONE,
         BOX,
         DOT,
-        LINE,
+        EDGE,
         BODY
     }
 
@@ -41,7 +32,7 @@ namespace CG
         }
         private static void calcoffset()
         {
-            float distance = Math.Abs(_cameraZ);
+            float distance = Math.Abs(_cameraPos.Z);
             float visibleHeight = (float)(2.0 * Math.Tan(22.5 * Math.PI / 180.0) * distance);
             _offset = (_mouseRadius / _size.Y) * visibleHeight;
         } 
@@ -58,14 +49,19 @@ namespace CG
         }
 
 
-        private static float _cameraZ = -5.0f;
-        public static ref readonly float CameraZ => ref _cameraZ;
+        private static Vector3 _cameraPos = new Vector3(0,0,-5.0f);
         public static void changeCameraZ(float z)
         {
-            _cameraZ = z;
+            _cameraPos.Z = z;
             calcoffset();
         }
-
+        public static ref readonly Vector3 CameraPos => ref _cameraPos;
+        public static void changeCameraPos(float x, float y)
+        {
+            _cameraPos.X = x;
+            _cameraPos.Y = y;
+            calcoffset();
+        }
 
     }
 
@@ -89,49 +85,111 @@ namespace CG
 
             float visibleHeight = (float)(2.0 * Math.Tan(22.5 * Math.PI / 180.0) * Math.Abs(cameaZ));
             float visibleWidth = visibleHeight * (Configs.Size.X / Configs.Size.Y);
-            return new Vector3(ndcX * (visibleWidth / 2.0f), ndcY * (visibleHeight / 2.0f),0);
-
+            return new Vector3(ndcX * (visibleWidth / 2.0f) - Configs.CameraPos.X, ndcY * (visibleHeight / 2.0f) - Configs.CameraPos.Y,0);
         }
-
-
     }
 
     public class Primitive
     {
         private List<Vector3> Dots;
+        private List<Pair<int,int>> Edges;
         private Rect _box;
         public bool closed { private set; get; }
         public Vector3 color;
         public ref readonly Rect Box => ref _box;
-        public Primitive()
+
+        public Pair<int, TYPE> hoverOn = new Pair<int, TYPE>(-1,TYPE.NONE);
+        public int scopedTo = -1;
+        private Primitive()
         {
+            Edges = new List<Pair<int, int>>();
             Dots = new List<Vector3>();
         }
         public Primitive(Vector3 dot, Vector3 color)
         {
+            
+            Edges = new List<Pair<int,int>>();
             Dots = new List<Vector3>();
             Dots.Add(dot);
             this.color = color;
             _box = new Rect(dot.X, dot.Y, dot.X, dot.Y);
+            scopedTo = 0;
         }
 
         public void addDot(Vector3 dot) 
         {
-            if (dot == Dots[getAmOfDots() - 1] && getAmOfDots() > 1)
+            if(scopedTo != -1) 
             {
-                closed = true;
-            }
-            else
-            {
+                scopedTo = Dots.Count - 1;
                 Dots.Add(dot);
+                addEdge(scopedTo, Dots.Count - 1);
                 recalcBox();
+                
+                return;
             }
+            scopedTo = Dots.Count - 1;
+            Dots.Add(dot);
+            recalcBox();
+            return;
+
+        }
+        public void addEdge(int i, int j)
+        {
+            Edges.Add(new Pair<int,int>(i, j));
+        }
+
+        public void divideEdge(int edge, int dot)
+        {
+            Edges.Add(new Pair<int, int>(Edges[edge].right, dot));
+            var tmp = Edges[edge];
+            tmp.right = dot;
+            Edges[edge] = tmp;
         }
 
         public void changeDotPosFlow(Vector3 dot,int i)
         {
             Dots[i] = dot;
         }
+        public bool snap()
+        {
+            switch (hoverOn.right) 
+            {
+                case TYPE.DOT:
+                {
+                    if(scopedTo != -1 && scopedTo!=hoverOn.left) 
+                    {
+                        var tmp = Edges[Edges.Count - 1];
+                        tmp.right = scopedTo;
+                        tmp.left = hoverOn.left;
+                        Edges[Edges.Count - 1] = tmp;
+                        Dots.RemoveAt(Dots.Count - 1);
+                        scopedTo = -1;
+                        return true;
+                    }
+                    else 
+                    {
+                        Console.WriteLine("ERROR snap dot");
+                    }
+                    break;
+                }
+                case TYPE.EDGE:
+                {
+                    if (scopedTo != -1)
+                    {
+                        divideEdge(hoverOn.left, Dots.Count - 1);
+                        scopedTo = -1;
+                        return false;
+                    }
+                    else
+                    {
+                        Console.WriteLine("ERROR snap edge");
+                    }
+                    break;
+                }
+            }
+            return false;
+        }
+
         public void recalcBox()
         {
             foreach (var dot in Dots)
@@ -147,48 +205,54 @@ namespace CG
         {
             return CollectionsMarshal.AsSpan(Dots);
         }
+        public ReadOnlySpan<Pair<int,int>> getEdges()
+        {
+            return CollectionsMarshal.AsSpan(Edges);
+        }
         public int getAmOfDots()
         {
             return Dots.Count;
         }
 
-        public (INTERSECTION Type, int DotIndex) intersect(Vector3 cords) 
+        public (TYPE Type, int Index) intersect(Vector3 cords) 
         {
 
             float offset = Configs.Offset;
-            if (
-                Collision.RectCollision(_box,cords,offset)
-               )
+            if (Collision.RectCollision(_box,cords,offset))
             {
-
-                for (int i = 0;  i < Dots.Count; i++) 
+                for (int i = 0;  i < Dots.Count - (scopedTo == -1 ? 0 : 1); i++) 
                 {
                     if (Collision.DotCollision(Dots[i],cords,offset)) 
                     {
-                        return (INTERSECTION.DOT, i);
+                        hoverOn.left = i;
+                        hoverOn.right = TYPE.DOT;
+                        return (TYPE.DOT, i);
                     }
                 }
 
-                for (int i = 0; i < Dots.Count - 1; i++)
+                for (int i = 0; i < Edges.Count; i++)
                 {
-                    if (Collision.LineCollision(Dots[i], Dots[i+1],cords))
+                    if (Collision.LineCollision(Dots[Edges[i].left], Dots[Edges[i].right],cords))
                     {
-                        return (INTERSECTION.LINE, -1);
+                        hoverOn.left = i;
+                        hoverOn.right = TYPE.EDGE;
+                        return (TYPE.EDGE, i);
                     }
                 }
+
                 if (closed) 
                 {
-                    if (Collision.LineCollision(Dots[0], Dots[getAmOfDots()-1], cords))
-                    {
-                        return (INTERSECTION.LINE, -1);
-                    }
                     if (Collision.PolygonCollision(this, cords)) 
                     {
-                        return (INTERSECTION.BODY, -1);
+                        hoverOn.left = -1;
+                        hoverOn.right = TYPE.BODY;
+                        return (TYPE.BODY, -1);
                     }
                 }
             }
-            return (INTERSECTION.NONE ,- 1);
+            hoverOn.left = -1;
+            hoverOn.right = TYPE.NONE;
+            return (TYPE.NONE ,- 1);
         }
 
 
