@@ -53,8 +53,9 @@ namespace CG
             this.primitive = primitive;
         }
 
-        public static bool RectCollision(Rect rect, Vector3 dot, float offset=0)
+        public static bool RectCollision(Rect rect, Vector3 dot)
         {
+            float offset = Configs.Offset;
             if (
                 dot.X < (rect.Right + offset) &&
                 dot.X > (rect.Left - offset) &&
@@ -66,17 +67,25 @@ namespace CG
             }
             return false;
         }
-        public static bool DotCollision(Vector3 a, Vector3 b,float offset=0)
+        public static bool DotCollision(Vector3 a, Vector3 b)
         {
+            float offset = Configs.Offset;
             float dx = a.X - b.X;
             float dy = a.Y - b.Y;
-            if ((dx * dx + dy * dy) < (offset * offset))
-            {
-                return true;
-            }
-            return false;
+            return (dx * dx + dy * dy) < (offset * offset);
+
         }
         public static bool LineCollision(Vector3 lineStart, Vector3 lineEnd, Vector3 dot) 
+        {
+            float offset = Configs.Offset;
+            Vector3 position = GetClosestPointOnEdge(lineStart, lineEnd, dot);
+            position = new Vector3(dot.X - position.X, dot.Y - position.Y, 0);
+            float distanceSq = position.X * position.X + position.Y * position.Y;
+
+            return distanceSq < (offset * offset);
+        }
+        
+        public static Vector3 GetClosestPointOnEdge(Vector3 lineStart, Vector3 lineEnd, Vector3 dot) 
         {
             float offset = Configs.Offset;
             float lineX = lineEnd.X - lineStart.X;
@@ -86,9 +95,7 @@ namespace CG
 
             if (lineLenSq == 0f)
             {
-                float dx = dot.X - lineStart.X;
-                float dy = dot.Y - lineStart.Y;
-                return (dx * dx + dy * dy) < (offset * offset);
+                return lineStart;
             }
 
             float mouseVectorX = dot.X - lineStart.X;
@@ -104,13 +111,10 @@ namespace CG
             float closestX = lineStart.X + t * lineX;
             float closestY = lineStart.Y + t * lineY;
 
-            float distanceX = dot.X - closestX;
-            float distanceY = dot.Y - closestY;
-            float distanceSq = distanceX * distanceX + distanceY * distanceY;
+            return new Vector3(closestX,closestY, 0);
 
-            return distanceSq < (offset * offset);
         }
-        
+
         public static bool PolygonCollision(Primitive primitive,Vector3 dot) 
         {
             bool inside = false;

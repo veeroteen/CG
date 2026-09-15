@@ -50,6 +50,7 @@ namespace CG // Укажите ваше имя проекта
             switch (e.ChangedButton)
             {
                 case MouseButton.Left:
+                    handler.ExecuteButtonUp();
                     break;
                 case MouseButton.Right:
                     break;

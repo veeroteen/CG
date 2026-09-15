@@ -140,6 +140,7 @@ namespace CG
 
         public void divideEdge(int edge, int dot)
         {
+            Dots[dot] = Collision.GetClosestPointOnEdge(Dots[Edges[edge].right], Dots[Edges[edge].left], Dots[dot]);
             Edges.Add(new Pair<int, int>(Edges[edge].right, dot));
             var tmp = Edges[edge];
             tmp.right = dot;
@@ -177,7 +178,6 @@ namespace CG
                     if (scopedTo != -1)
                     {
                         divideEdge(hoverOn.left, Dots.Count - 1);
-                        scopedTo = -1;
                         return false;
                     }
                     else
@@ -218,11 +218,11 @@ namespace CG
         {
 
             float offset = Configs.Offset;
-            if (Collision.RectCollision(_box,cords,offset))
+            if (Collision.RectCollision(_box,cords))
             {
                 for (int i = 0;  i < Dots.Count - (scopedTo == -1 ? 0 : 1); i++) 
                 {
-                    if (Collision.DotCollision(Dots[i],cords,offset)) 
+                    if (Collision.DotCollision(Dots[i],cords)) 
                     {
                         hoverOn.left = i;
                         hoverOn.right = TYPE.DOT;
@@ -230,7 +230,7 @@ namespace CG
                     }
                 }
 
-                for (int i = 0; i < Edges.Count; i++)
+                for (int i = 0; i < Edges.Count - (scopedTo == -1 ? 0 : 1); i++)
                 {
                     if (Collision.LineCollision(Dots[Edges[i].left], Dots[Edges[i].right],cords))
                     {

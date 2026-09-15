@@ -33,6 +33,7 @@ namespace CG
         private bool dragCameraState = false;
         private Vector2 mousePosition;
         private Vector3 GLMousePosition;
+        private Pair<int,TYPE> hoverOn = new Pair<int,TYPE>(-1,TYPE.NONE);
         private void draw() 
         {
             if (scoped != null )
@@ -45,10 +46,10 @@ namespace CG
             foreach (var primitive in Primitives)
             {
                 var dots = primitive.getDots();
-                var tmp = primitive.intersect(GLMousePosition);
-                if(iState == ISTATE.DRAW && tmp.Type == TYPE.BOX) 
+                primitive.intersect(GLMousePosition);
+                if(iState == ISTATE.DRAW && primitive.hoverOn.right == TYPE.BOX) 
                 {
-                    tmp.Type = TYPE.NONE;
+                    primitive.hoverOn.right = TYPE.NONE;
                 }
 
 
@@ -59,6 +60,7 @@ namespace CG
                 /*
                 if (primitive.getAmOfDots() > 2)
                 {
+                    hoverOn = primitive.hoverOn;
                     gl.Color(color.X, color.Y, color.Z);
                     gl.Begin(OpenGL.GL_POLYGON);
                     foreach (var dot in primitive.getDots())
@@ -70,12 +72,13 @@ namespace CG
                 */
                 {
 
-                    if (tmp.Type == TYPE.EDGE && !hovered )
+                    if (primitive.hoverOn.right == TYPE.EDGE && !hovered )
                     {
+                        //hoverOn = primitive.hoverOn;
                         gl.Color(1.0f, 1.0f, 1.0f);
                         gl.LineWidth(4.0f);
 
-                        var edge = primitive.getEdges()[tmp.Index];
+                        var edge = primitive.getEdges()[primitive.hoverOn.left];
                         
                         gl.Begin(OpenGL.GL_LINES);
                         gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
@@ -101,7 +104,7 @@ namespace CG
 
                 for (int i = 0; i < dots.Length; i++)
                 {
-                    if(tmp.Type == TYPE.DOT && tmp.Index == i && !hovered) 
+                    if(primitive.hoverOn.right == TYPE.DOT && primitive.hoverOn.left == i && !hovered) 
                     {
                         gl.PointSize(8.0f);
                         gl.Color(1.0f, 1.0f, 1.0f);
@@ -135,7 +138,7 @@ namespace CG
                 Configs.changeCameraPos(tx + Configs.CameraPos.X, ty + Configs.CameraPos.Y);
                 GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
             }
-            else 
+            else
             {
                 GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
             }
@@ -169,6 +172,7 @@ namespace CG
             {
                 case ISTATE.FREE:
                 {
+
                     Primitive line = new Primitive(GLMousePosition, color);
                     line.addDot(GLMousePosition);
                     scoped = line;
@@ -209,6 +213,11 @@ namespace CG
                     break;
                 }
             }
+        }
+
+        public void ExecuteButtonUp() 
+        {
+
         }
         public void MiscButtonDown() 
         {
