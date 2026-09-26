@@ -7,6 +7,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media;
 
 namespace CG
 {
@@ -40,13 +41,39 @@ namespace CG
         public static ref readonly float Offset => ref _offset;
 
 
+        private static Rect GetScreenRect()
+        {
+            float visibleHeight =
+                   (float)(2.0 * Math.Tan(22.5 * Math.PI / 180.0)
+                   * Math.Abs(CameraPos.Z));
+
+            float visibleWidth =
+                visibleHeight * (Size.X / Size.Y);
+
+            return new Rect(
+                -visibleWidth / 2.0f - CameraPos.X,
+                -visibleHeight / 2.0f - CameraPos.Y,
+                 visibleWidth / 2.0f - CameraPos.X,
+                 visibleHeight / 2.0f - CameraPos.Y
+            );
+        }
+
+
         private static Vector2 _size = new Vector2(0, 0);
         public static ref readonly Vector2 Size => ref _size;
         public static void changeSize(Vector2 size)
         {
             _size = size;
             calcoffset();
+            _screenRect = GetScreenRect();
         }
+
+        private static Rect _screenRect = new Rect();
+
+        public static ref readonly Rect ScreenRect => ref _screenRect;
+
+
+
 
 
         private static Vector3 _cameraPos = new Vector3(0,0,-5.0f);
@@ -54,6 +81,7 @@ namespace CG
         {
             _cameraPos.Z = z;
             calcoffset();
+            _screenRect = GetScreenRect();
         }
         public static ref readonly Vector3 CameraPos => ref _cameraPos;
         public static void changeCameraPos(float x, float y)
@@ -61,7 +89,10 @@ namespace CG
             _cameraPos.X = x;
             _cameraPos.Y = y;
             calcoffset();
+            _screenRect = GetScreenRect();
         }
+
+
 
     }
 
@@ -98,8 +129,6 @@ namespace CG
         public Vector3 color;
         public ref readonly Rect Box => ref _box;
 
-        public Pair<int, TYPE> hoverOn = new Pair<int, TYPE>(-1,TYPE.NONE);
-        public int scopedTo = -1;
         private Primitive()
         {
             Edges = new List<Pair<int, int>>();
@@ -113,26 +142,25 @@ namespace CG
             Dots.Add(dot);
             this.color = color;
             _box = new Rect(dot.X, dot.Y, dot.X, dot.Y);
-            scopedTo = 0;
         }
 
-        public void addDot(Vector3 dot) 
+        public void addDot(Vector3 dot, int scopedTo = -1) 
         {
             if(scopedTo != -1) 
             {
-                scopedTo = Dots.Count - 1;
                 Dots.Add(dot);
                 addEdge(scopedTo, Dots.Count - 1);
                 recalcBox();
-                
                 return;
             }
-            scopedTo = Dots.Count - 1;
             Dots.Add(dot);
             recalcBox();
             return;
 
         }
+
+
+
         public void addEdge(int i, int j)
         {
             Edges.Add(new Pair<int,int>(i, j));
@@ -151,20 +179,32 @@ namespace CG
         {
             Dots[i] = dot;
         }
-        public bool snap()
+        public bool snap(Pair<int,TYPE> hoverOn, int scopedTo = -1)
         {
             switch (hoverOn.right) 
             {
                 case TYPE.DOT:
                 {
-                    if(scopedTo != -1 && scopedTo!=hoverOn.left) 
+                    if(scopedTo != -1) 
                     {
-                        var tmp = Edges[Edges.Count - 1];
-                        tmp.right = scopedTo;
-                        tmp.left = hoverOn.left;
-                        Edges[Edges.Count - 1] = tmp;
-                        Dots.RemoveAt(Dots.Count - 1);
-                        scopedTo = -1;
+                        for (int i = 0; i < Edges.Count; i++ ) 
+                        {
+                            if (Edges[i].left == scopedTo || Edges[i].right == scopedTo) 
+                            {
+                                Pair<int,int> edge = Edges[i];
+                                if (edge.left == scopedTo) 
+                                {
+                                    edge.left = hoverOn.left;
+                                }
+                                else 
+                                {
+                                    edge.right = hoverOn.left;
+                                }
+                                Edges[i] = edge;
+                            }
+                        }
+
+                        Dots.RemoveAt(scopedTo);
                         return true;
                     }
                     else 
@@ -177,7 +217,7 @@ namespace CG
                 {
                     if (scopedTo != -1)
                     {
-                        divideEdge(hoverOn.left, Dots.Count - 1);
+                        divideEdge(hoverOn.left, scopedTo);
                         return false;
                     }
                     else
@@ -214,29 +254,32 @@ namespace CG
             return Dots.Count;
         }
 
-        public (TYPE Type, int Index) intersect(Vector3 cords) 
+        public Pair<int,TYPE> intersect(Vector3 cords,int scopedTo = -1) 
         {
 
             float offset = Configs.Offset;
             if (Collision.RectCollision(_box,cords))
             {
-                for (int i = 0;  i < Dots.Count - (scopedTo == -1 ? 0 : 1); i++) 
+                for (int i = 0;  i < Dots.Count; i++) 
                 {
-                    if (Collision.DotCollision(Dots[i],cords)) 
+                    if (i != scopedTo)
                     {
-                        hoverOn.left = i;
-                        hoverOn.right = TYPE.DOT;
-                        return (TYPE.DOT, i);
+                        if (Collision.DotCollision(Dots[i], cords))
+                        {
+                            return new Pair<int, TYPE>(i, TYPE.DOT);
+                        }
                     }
                 }
 
-                for (int i = 0; i < Edges.Count - (scopedTo == -1 ? 0 : 1); i++)
+
+                for (int i = 0; i < Edges.Count; i++)
                 {
-                    if (Collision.LineCollision(Dots[Edges[i].left], Dots[Edges[i].right],cords))
+                    if (Edges[i].left != scopedTo && Edges[i].right != scopedTo)
                     {
-                        hoverOn.left = i;
-                        hoverOn.right = TYPE.EDGE;
-                        return (TYPE.EDGE, i);
+                        if (Collision.LineCollision(Dots[Edges[i].left], Dots[Edges[i].right], cords))
+                        {
+                            return new Pair<int, TYPE>(i, TYPE.EDGE);
+                        }
                     }
                 }
 
@@ -244,18 +287,18 @@ namespace CG
                 {
                     if (Collision.PolygonCollision(this, cords)) 
                     {
-                        hoverOn.left = -1;
-                        hoverOn.right = TYPE.BODY;
-                        return (TYPE.BODY, -1);
+                        return new Pair<int, TYPE>(-1, TYPE.BODY);
                     }
                 }
+                return new Pair<int, TYPE>(-1, TYPE.BOX);
             }
-            hoverOn.left = -1;
-            hoverOn.right = TYPE.NONE;
-            return (TYPE.NONE ,- 1);
+            return new Pair<int, TYPE>(-1, TYPE.NONE);
         }
 
-
+        public bool intersect(Rect rect)
+        {
+            return _box.Intersects(rect);
+        }
 
     }
 }

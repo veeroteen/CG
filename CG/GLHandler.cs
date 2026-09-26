@@ -8,111 +8,83 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Controls;
+using System.Windows.Input;
 namespace CG
 {
-    public enum OSTATE
-    {
-        MESH,
-        POLYGON,
-    }
-    public enum ISTATE
-    {
-        FREE,
-        DRAW,
-        CONTINUOUSDRAW,
-        MOVE
-    }
 
     class GLHandler
     {
         private OpenGL gl;
         private List<Primitive> Primitives;
-        private Primitive scoped;
+
         private OSTATE oState = OSTATE.MESH;
-        private ISTATE iState = ISTATE.FREE;
+        private IState iState = new(ISTATE.FREE);
         private bool dragCameraState = false;
         private Vector2 mousePosition;
         private Vector3 GLMousePosition;
+
         private Pair<int,TYPE> hoverOn = new Pair<int,TYPE>(-1,TYPE.NONE);
-        private void draw() 
+        private int hoverID = -1;
+        private Queue<InputEvent> inputQueue = new Queue<InputEvent>();
+        private void draw(List<int> drawables) 
         {
-            if (scoped != null )
+            if (iState.pID != -1)
             {
-                scoped.changeDotPosFlow(new Vector3((float)GLMousePosition.X, (float)GLMousePosition.Y, 0), scoped.getAmOfDots() - 1);
+                Primitives[iState.pID].changeDotPosFlow(new Vector3((float)GLMousePosition.X, (float)GLMousePosition.Y, 0), Primitives[iState.pID].getAmOfDots() - 1);
             }
-            bool hovered = false;
-            List<Collision> collisions = new List<Collision>();
 
-            foreach (var primitive in Primitives)
+            if (hoverOn.right == TYPE.EDGE)
             {
-                var dots = primitive.getDots();
-                primitive.intersect(GLMousePosition);
-                if(iState == ISTATE.DRAW && primitive.hoverOn.right == TYPE.BOX) 
+                var dots = Primitives[hoverID].getDots();
+                gl.Color(1.0f, 1.0f, 1.0f);
+                gl.LineWidth(4.0f);
+
+                var edge = Primitives[hoverID].getEdges()[hoverOn.left];
+
+                gl.Begin(OpenGL.GL_LINES);
+                gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                gl.End();
+            }
+
+            if (hoverOn.right == TYPE.DOT)
+            {
+                
+                var dots = Primitives[hoverID].getDots();
+                gl.PointSize(8.0f);
+                gl.Color(1.0f, 1.0f, 1.0f);
+                gl.Begin(OpenGL.GL_POINTS);
+                gl.Vertex(dots[hoverOn.left].X, dots[hoverOn.left].Y, dots[hoverOn.left].Z);
+                gl.End();
+            }
+
+
+
+            foreach (var primitive in drawables)
+            {
+                var dots = Primitives[primitive].getDots();
+
+                var color = Primitives[primitive].color;
+
+                gl.Color(color.X, color.Y, color.Z);
+                gl.LineWidth(1.5f);
+
+
+
+
+                foreach (var edge in Primitives[primitive].getEdges())
                 {
-                    primitive.hoverOn.right = TYPE.NONE;
+                    gl.Begin(OpenGL.GL_LINES);
+                    gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                    gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                    gl.End();
                 }
-
-
-                //collisions.Add( new Collision(tmp.Type,tmp.DotIndex, primitive));
-
-                var color = primitive.color;
-
-                /*
-                if (primitive.getAmOfDots() > 2)
-                {
-                    hoverOn = primitive.hoverOn;
-                    gl.Color(color.X, color.Y, color.Z);
-                    gl.Begin(OpenGL.GL_POLYGON);
-                    foreach (var dot in primitive.getDots())
-                    {
-                        gl.Vertex(dot.X, dot.Y, dot.Z);
-                    }
-                }
-                else
-                */
-                {
-
-                    if (primitive.hoverOn.right == TYPE.EDGE && !hovered )
-                    {
-                        //hoverOn = primitive.hoverOn;
-                        gl.Color(1.0f, 1.0f, 1.0f);
-                        gl.LineWidth(4.0f);
-
-                        var edge = primitive.getEdges()[primitive.hoverOn.left];
-                        
-                        gl.Begin(OpenGL.GL_LINES);
-                        gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
-                        gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
-                        gl.End();
-                        
-                        
-                        hovered = true;
-                    }
-
-                    gl.Color(color.X, color.Y, color.Z);
-                    gl.LineWidth(1.5f);
-                    
-                    foreach (var edge in primitive.getEdges())
-                    {
-                        gl.Begin(OpenGL.GL_LINES);
-                        gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
-                        gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
-                        gl.End();
-                    }
-                }
+                
                 
 
                 for (int i = 0; i < dots.Length; i++)
                 {
-                    if(primitive.hoverOn.right == TYPE.DOT && primitive.hoverOn.left == i && !hovered) 
-                    {
-                        gl.PointSize(8.0f);
-                        gl.Color(1.0f, 1.0f, 1.0f);
-                        gl.Begin(OpenGL.GL_POINTS);
-                        gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
-                        gl.End();
-                        hovered = true;
-                    }
+                    
                     gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
 
                     gl.PointSize(4.0f);
@@ -125,10 +97,12 @@ namespace CG
 
             }
         }
-
-
         public void Update( Vector2 mousePosition)
         {
+            List<int> drawables = new List<int>();
+            Rect screenRect = Configs.ScreenRect;
+
+
             if (dragCameraState) 
             {
                 float tx = GLMousePosition.X, ty = GLMousePosition.Y;
@@ -142,14 +116,52 @@ namespace CG
             {
                 GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
             }
-                
+
+            for (int i = 0; i < Primitives.Count; i++)
+            {
+                if (Primitives[i].intersect(screenRect))
+                {
+                    drawables.Add(i);
+                }
+            }
+            hoverOn = new Pair<int, TYPE>(-1, TYPE.NONE);
+            hoverID = -1;
+            
+            foreach (int i in drawables) 
+            {
+                var tmp = Primitives[i].intersect(GLMousePosition,iState.DotID);
+                if(tmp.right == TYPE.DOT)
+                {
+                    hoverID = i;
+                    hoverOn = tmp;
+                    break;
+                }
+                else if(tmp.right == TYPE.EDGE) 
+                {
+                    hoverID = i;
+                    hoverOn = tmp;
+                    continue;
+                }
+                else if(tmp.right == TYPE.BODY) 
+                {
+                    hoverID = i;
+                    hoverOn = tmp;
+                    continue;
+                }
+            }
+            
+            inputHandle();
+
             this.mousePosition = mousePosition;
             gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT | OpenGL.GL_DEPTH_BUFFER_BIT);
             gl.LoadIdentity();
 
             gl.Translate(Configs.CameraPos.X, Configs.CameraPos.Y, Configs.CameraPos.Z);
 
-            draw();
+
+
+
+            draw(drawables);
 
             gl.Flush();
         }
@@ -162,83 +174,162 @@ namespace CG
             gl.Enable(OpenGL.GL_POINT_SMOOTH);
         }
 
-        public void ExecuteButtonDown()
+
+
+        public void addToInputQueue(InputEvent e)
+        {
+            inputQueue.Enqueue(e);
+        }
+        public void inputHandle() 
+        {
+            while (inputQueue.Count > 0)
+            {
+                var e = inputQueue.Dequeue();
+                switch (e.Itype)
+                {
+                    case KEYT.MOUSE: 
+                    {
+                        MouseHandle((MouseKeyInput)e);
+                        break;
+                    }
+                    case KEYT.KEYBOARD:
+                    {
+                        KeyboardHandle((KeyboardInput)e);
+                        break;
+                    }
+                    case KEYT.WHEEL:
+                    {
+                        MouseWheelInput wheelInput = (MouseWheelInput)e;
+                        ChangeScale(wheelInput.delta > 0 ? 1 : -1);
+                        break;
+                    }
+                
+                
+                }
+            }
+        }
+        private void MouseHandle(MouseKeyInput e) 
+        {
+            if (e.state == System.Windows.Input.MouseButtonState.Pressed) 
+            {
+                switch (e.button)
+                {
+                    case MouseButton.Left:
+                        ExecuteButtonDown();
+                        break;
+                    case MouseButton.Right:
+                        break;
+                    case MouseButton.Middle:
+                        DragCameraSwitch(true);
+                        break;
+                }
+            }
+            else 
+            {
+                switch (e.button)
+                {
+                    case MouseButton.Left:
+                        ExecuteButtonUp();
+                        break;
+                    case MouseButton.Right:
+                        break;
+                    case MouseButton.Middle:
+                        DragCameraSwitch(false);
+                        break;
+                }
+            }
+        }
+        private void KeyboardHandle(KeyboardInput e) 
+        {
+            if (e.down)
+            {
+                switch (e.key)
+                {
+                    case Key.LeftCtrl:
+                        ControlKeyDown();
+                        break;
+
+                }
+            }
+            else
+            {
+                switch (e.key)
+                {
+                    case Key.LeftCtrl:
+                        ControlKeyUp();
+                        break;
+                }
+            }
+        }
+        private void ExecuteButtonDown()
         {
             Vector3 color = new Vector3(1.0f, 0.0f, 0.0f);
             
             Console.WriteLine($" OpenGL: X={GLMousePosition.X:F2}, Y={GLMousePosition.Y:F2}, Y={Configs.CameraPos.Z:F2}");
-
-            switch (iState) 
+            
+            switch (iState.Istate) 
             {
                 case ISTATE.FREE:
                 {
 
                     Primitive line = new Primitive(GLMousePosition, color);
-                    line.addDot(GLMousePosition);
-                    scoped = line;
                     Primitives.Add(line);
-                    iState = ISTATE.DRAW;
+                    line.addDot(GLMousePosition,0);
+                    iState.toggleDraw(Primitives.Count-1,line.getDots().Length-1);
                     break;
                 }
                 case ISTATE.CONTINUOUSDRAW:
                 {
-                    if (scoped != null)
+                    if (iState.pID != -1)
                     {
-                        if (!scoped.snap())
+                        if (!Primitives[iState.pID].snap(hoverOn,iState.DotID))
                         {
-                            scoped.addDot(GLMousePosition);
+                            
+                            Primitives[iState.pID].addDot(GLMousePosition,iState.DotID);
+                            iState.DotID = Primitives[iState.pID].getAmOfDots() - 1;
                         }
                         else 
                         {
-                            iState = ISTATE.FREE;
-                            scoped = null;
+                            iState.ToggleFreeState();
                         }
                     }
                     else 
                     {
                         Primitive line = new Primitive(GLMousePosition, color);
-                        line.addDot(GLMousePosition);
-                        scoped = line;
                         Primitives.Add(line);
-                        iState = ISTATE.DRAW;
+                        line.addDot(GLMousePosition,0);
+                        iState.toggleDraw(Primitives.Count - 1, line.getDots().Length - 1);
+                        iState.ToggleContiniousDraw(true);
                     }
                     break;
                 }
                 case ISTATE.DRAW:
                 {
-                    iState = ISTATE.FREE;
-                    scoped.snap();
-                    scoped.recalcBox();
-                    scoped = null;
+                    Primitives[iState.pID].snap(hoverOn,iState.DotID);
+                    Primitives[iState.pID].recalcBox();
+                    iState.ToggleFreeState();
+                    
                     break;
                 }
             }
-        }
-
-        public void ExecuteButtonUp() 
-        {
-
-        }
-        public void MiscButtonDown() 
-        {
             
-        
-        
         }
-
-
-        public void ControlKeyDown() 
+        private void ExecuteButtonUp() 
         {
-            switch (iState)
+
+        }
+        private void ControlKeyDown() 
+        {
+            switch (iState.Istate)
             {
                 case ISTATE.FREE:
                 {
-                    iState = ISTATE.CONTINUOUSDRAW;
+                    iState.ToggleContiniousDraw(true);
                     break;
                 }
                 case ISTATE.DRAW:
                 {
-                    iState = ISTATE.CONTINUOUSDRAW;
+                    iState.ToggleContiniousDraw(true);
                     break;
                 }
                 case ISTATE.CONTINUOUSDRAW:
@@ -247,9 +338,9 @@ namespace CG
                 }
             }
         }
-        public void ControlKeyUp()
+        private void ControlKeyUp()
         {
-            switch (iState)
+            switch (iState.Istate)
             {
                 case ISTATE.FREE:
                 {
@@ -261,27 +352,24 @@ namespace CG
                 }
                 case ISTATE.CONTINUOUSDRAW:
                 {
-                    if (scoped != null)
+                    if (iState.pID != -1 )
                     {
-                        iState = ISTATE.DRAW;
+                        iState.ToggleContiniousDraw(false);
                     }
                     else 
                     {
-                        iState = ISTATE.FREE;
+                        iState.ToggleFreeState();
                     }
                     break;
                 }
             }
 
         }
-
-
-        public void DragCameraSwitch(bool state) 
+        private void DragCameraSwitch(bool state) 
         {
             dragCameraState = state;
         }
-
-        public void ChangeScale(int zoom, float amount = 0.25f)
+        private void ChangeScale(int zoom, float amount = 0.25f)
         {
             float cameraZ = Configs.CameraPos.Z;
             cameraZ += zoom * amount;

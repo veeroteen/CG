@@ -32,57 +32,25 @@ namespace CG // Укажите ваше имя проекта
         }
         private void openGLControl_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            switch (e.ChangedButton)
-            {
-                case MouseButton.Left:
-                    handler.ExecuteButtonDown();
-                    break;
-                case MouseButton.Right:
-                    break;
-                case MouseButton.Middle:
-                    handler.DragCameraSwitch(true);
-                    break;
-            }
+            handler.addToInputQueue(new MouseKeyInput(e));
         }
 
         private void openGLControl_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            switch (e.ChangedButton)
-            {
-                case MouseButton.Left:
-                    handler.ExecuteButtonUp();
-                    break;
-                case MouseButton.Right:
-                    break;
-                case MouseButton.Middle:
-                    handler.DragCameraSwitch(false);
-                    break;
-            }
+            handler.addToInputQueue(new MouseKeyInput(e));
         }
         private void openGLControl_MouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
         {
-            handler.ChangeScale(e.Delta > 0 ? 1 : -1);
+            handler.addToInputQueue(new MouseWheelInput(e));
         }
 
         private void openGLControl_KeyDown(object sender, KeyEventArgs e)
         {
-            switch (e.Key) 
-            {
-                case Key.LeftCtrl:
-                    handler.ControlKeyDown();
-                    break;
-            
-            }
+            handler.addToInputQueue(new KeyboardInput(e));
         }
         private void openGLControl_KeyUp(object sender, KeyEventArgs e)
         {
-            switch (e.Key)
-            {
-                case Key.LeftCtrl:
-                    handler.ControlKeyUp();
-                    break;
-
-            }
+            handler.addToInputQueue(new KeyboardInput(e));
         }
 
 

@@ -4,6 +4,8 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace CG
 {
@@ -37,6 +39,14 @@ namespace CG
             Top = top;
             Right = right;
             Bottom = bottom;
+        }
+
+        public bool Intersects(Rect other)
+        {
+            return Left <= other.Right &&
+                   Right >= other.Left &&
+                   Top <= other.Bottom &&
+                   Bottom >= other.Top;
         }
     }
 
@@ -134,3 +144,52 @@ namespace CG
 
 
 }
+
+
+public enum KEYT 
+{
+    MOUSE,
+    WHEEL,
+    KEYBOARD
+}
+
+public abstract class InputEvent
+{
+    public KEYT Itype { get; protected set; }
+}
+
+public class MouseWheelInput : InputEvent
+{
+    public int delta { get; }
+    public MouseWheelInput(System.Windows.Input.MouseWheelEventArgs e) 
+    {
+        Itype = KEYT.WHEEL;
+        delta = e.Delta;
+    }
+}
+
+
+public class MouseKeyInput : InputEvent 
+{
+    public MouseButton button { get; }
+    public MouseButtonState state { get; }
+    public MouseKeyInput(MouseButtonEventArgs e) 
+    {
+        Itype = KEYT.MOUSE;
+        button = e.ChangedButton;
+        state = e.ButtonState;
+    }
+}
+
+public class KeyboardInput : InputEvent
+{
+    public Key key { get; }
+    public bool down { get; }
+    public KeyboardInput(KeyEventArgs e) 
+    {
+        Itype = KEYT.KEYBOARD;
+        key = e.Key;
+        down = e.IsDown;
+    }
+}
+
