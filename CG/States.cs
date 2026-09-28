@@ -77,6 +77,13 @@ namespace CG
             DotID = -1;
             callback();
         }
+        public void ToggleSelectionState()
+        {
+            Istate = ISTATE.SELECTION;
+            pID = -1;
+            DotID = -1;
+            callback();
+        }
     }
 
 

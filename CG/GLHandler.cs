@@ -5,10 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Printing;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Shapes;
 namespace CG
 {
 
@@ -17,6 +19,7 @@ namespace CG
         private OpenGL gl;
         private List<Primitive> Primitives;
         private List<List<int>> groups;
+        private int curGroup = 0;
         private OSTATE oState = OSTATE.MESH;
         private IState iState;
         private bool dragCameraState = false;
@@ -26,8 +29,85 @@ namespace CG
         private Pair<int,TYPE> hoverOn = new Pair<int,TYPE>(-1,TYPE.NONE);
         private int hoverID = -1;
         private Queue<InputEvent> inputQueue = new Queue<InputEvent>();
+        private List<Selection> selected;
+        public GLHandler(MainWindow window)
+        {
+            selected = new List<Selection>();
+            groups = new List<List<int>>();
+            groups.Add(new List<int>());
+            iState = new IState(updateIO, ISTATE.FREE);
+            _window = window;
+            Primitives = new List<Primitive>();
+            gl = window.openGLControl.OpenGL;
+            gl.ClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+            gl.PointSize(6.0f);
+            gl.Enable(OpenGL.GL_POINT_SMOOTH);
+            updateGroupNumber();
+        }
+
         private void draw(List<int> drawables) 
         {
+           
+            foreach (var s in selected) 
+            {
+                var dots = Primitives[s.pid].getDots();
+                var edges = Primitives[s.pid].getEdges();
+                switch (s.type) 
+                {
+                    case TYPE.BODY: 
+                    {
+
+                        
+                        gl.Color(0.1f, 0.1f, 1.0f);
+                        gl.LineWidth(4.0f);
+                        foreach (var edge in edges)
+                        {
+                            gl.Begin(OpenGL.GL_LINES);
+                            gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                            gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                            gl.End();
+                        }
+
+                        gl.PointSize(8.0f);
+                        gl.Color(0.1f, 0.1f, 1.0f);
+                        foreach (var dot in Primitives[s.pid].getDots()) 
+                        {
+
+                            gl.Begin(OpenGL.GL_POINTS);
+                            gl.Vertex(dot.X,dot.Y,dot.Z);
+                            gl.End();
+                        }
+
+
+
+                        break;
+                    }
+                    case TYPE.DOT: 
+                    {
+                        gl.PointSize(8.0f);
+                        gl.Color(0.1f, 0.1f, 1.0f);
+                        gl.Begin(OpenGL.GL_POINTS);
+                        gl.Vertex(dots[s.id].X, dots[s.id].Y, dots[s.id].Z);
+                        gl.End();
+
+                        break;
+                    }
+                    case TYPE.EDGE:
+                    {
+                        gl.Color(0.1f, 0.1f, 1.0f);
+                        gl.LineWidth(4.0f);
+                        gl.Begin(OpenGL.GL_LINES);
+                        gl.Vertex(dots[edges[s.id].left].X, dots[edges[s.id].left].Y, dots[edges[s.id].left].Z);
+                        gl.Vertex(dots[edges[s.id].right].X, dots[edges[s.id].right].Y, dots[edges[s.id].right].Z);
+                        gl.End();
+
+                        break;
+                    }
+                }
+            }
+
+
+
 
             if (hoverOn.right == TYPE.EDGE)
             {
@@ -87,23 +167,18 @@ namespace CG
 
                 gl.Begin(OpenGL.GL_LINES);
 
-                // X
                 gl.Vertex(center.X - size, center.Y, center.Z);
                 gl.Vertex(center.X + size, center.Y, center.Z);
 
-                // Y
                 gl.Vertex(center.X, center.Y - size, center.Z);
                 gl.Vertex(center.X, center.Y + size, center.Z);
 
                 gl.End();
 
-
-
-
             }
 
 
-
+            
             if (iState.Istate == ISTATE.MOVE && iState.pID != -1) 
             {
                 switch (iState.type)
@@ -120,17 +195,67 @@ namespace CG
                     }
                     case TYPE.EDGE:
                     {
+                        var dots = Primitives[iState.pID].getDots();
+                        gl.Color(1.0f, 1.0f, 1.0f);
+                        gl.LineWidth(4.0f);
+
+                        var edge = Primitives[iState.pID].getEdges()[iState.DotID];
+
+                        gl.Begin(OpenGL.GL_LINES);
+                        gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                        gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                        gl.End();
+
+                        gl.PointSize(8.0f);
+                        gl.Color(1.0f, 1.0f, 1.0f);
+                        gl.Begin(OpenGL.GL_POINTS);
+                        gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                        gl.End();
+                        gl.Begin(OpenGL.GL_POINTS);
+                        gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                        gl.End();
+
 
 
                         break;
                     }
                     case TYPE.BODY:
                     {
+
+
+                        var dots = Primitives[iState.pID].getDots();
+                        gl.Color(1.0f, 1.0f, 1.0f);
+                        gl.LineWidth(4.0f);
+
+                        foreach (var edge in Primitives[iState.pID].getEdges())
+                        {
+                            gl.Begin(OpenGL.GL_LINES);
+                            gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                            gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                            gl.End();
+                        }
+                        gl.PointSize(8.0f);
+                        gl.Color(1.0f, 1.0f, 1.0f);
+
+                        for (int i = 0; i < dots.Length; i++)
+                        {
+
+                            gl.Begin(OpenGL.GL_POINTS);
+                            gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
+                            gl.End();
+                        }
+
+
+
+
+
+
+
                         break;
                     }
                 }
             }
-
+            
 
             foreach (var primitive in drawables)
             {
@@ -156,7 +281,6 @@ namespace CG
 
                 for (int i = 0; i < dots.Length; i++)
                 {
-                    
                     gl.PointSize(4.0f);
                     gl.Color(0.0f, 1.0f, 0.0f);
                     gl.Begin(OpenGL.GL_POINTS);
@@ -190,7 +314,9 @@ namespace CG
                 dy = GLMousePosition.Y - dy;
 
             }
-            
+            inputHandle();
+
+
             for (int i = 0; i < Primitives.Count; i++)
             {
                 if (Primitives[i].intersect(Configs.ScreenRect))
@@ -226,7 +352,7 @@ namespace CG
                 }
             }
             
-            inputHandle();
+            
 
             
 
@@ -264,16 +390,7 @@ namespace CG
 
             gl.Flush();
         }
-        public GLHandler(MainWindow window)
-        {
-            iState = new IState(updateIO, ISTATE.FREE);
-            _window = window;
-            Primitives = new List<Primitive>();
-            gl = window.openGLControl.OpenGL;
-            gl.ClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-            gl.PointSize(6.0f);
-            gl.Enable(OpenGL.GL_POINT_SMOOTH);
-        }
+
 
 
 
@@ -352,6 +469,37 @@ namespace CG
                     case Key.T:
                         ToggleIMode();
                         break;
+                    case Key.G: 
+                    {
+                        toggleGroup();
+                        break;
+                    }
+                    case Key.F: 
+                    {
+                        groups.Add(new List<int>());
+                        curGroup = groups.Count - 1;
+                        updateGroupNumber();
+                        break;
+                    }
+                    case Key.A:
+                    {
+                        if(iState.Istate == ISTATE.SELECTION) 
+                        {
+                            for (int i = 0; i < groups[curGroup].Count; i++) 
+                            {
+                                SelectedAdd(new Selection(TYPE.BODY, groups[curGroup][i], -1));
+                            }
+                        }
+                        break;
+                    }
+                    case Key.Delete:
+                    {
+                        if(iState.Istate == ISTATE.SELECTION) 
+                        {
+                            DeleteButtonDown();
+                        }
+                        break;
+                    }
                 }
             }
             else
@@ -372,14 +520,25 @@ namespace CG
             }
             else if(iState.Istate == ISTATE.MOVE) 
             {
+                iState.ToggleSelectionState();
+            }
+            else if (iState.Istate == ISTATE.SELECTION)
+            {
+                selected.Clear();
                 iState.ToggleFreeState();
             }
-        
         }
+
         public void updateIO() 
         {
             _window.InputModeText.Text = iState.Istate.ToString();
         }
+        public void updateGroupNumber() 
+        {
+            _window.CurrentGroup.Text = curGroup.ToString();
+        }
+
+
         private void ExecuteButtonDown()
         {
             Vector3 color = new Vector3(1.0f, 0.0f, 0.0f);
@@ -390,12 +549,29 @@ namespace CG
             {
                 case ISTATE.FREE:
                 {
-
-                    Primitive line = new Primitive(GLMousePosition, color);
-                    Primitives.Add(line);
-                    line.addDot(GLMousePosition,0);
-                    iState.toggleDraw(Primitives.Count-1,line.getDots().Length-1);
+                    if (hoverID == -1)
+                    {
+                        Primitive line = AddPrimitive(GLMousePosition, color);
+                        line.addDot(GLMousePosition, 0);
+                        iState.toggleDraw(Primitives.Count - 1, line.getDots().Length - 1);
+                    }
+                    else 
+                    {
+                        if (hoverOn.right == TYPE.DOT)
+                        {
+                            Primitives[hoverID].addDot(GLMousePosition, hoverOn.left);
+                            iState.toggleDraw(hoverID, Primitives[hoverID].getDots().Length - 1);
+                        }
+                        else if(hoverOn.right == TYPE.EDGE) 
+                        {
+                            Primitives[hoverID].addDot(GLMousePosition);
+                            Primitives[hoverID].divideEdge(hoverOn.left, Primitives[hoverID].getDots().Length - 1);
+                            Primitives[hoverID].addDot(GLMousePosition, Primitives[hoverID].getDots().Length - 1);
+                            iState.toggleDraw(hoverID, Primitives[hoverID].getDots().Length - 1);
+                        }
+                    }
                     break;
+
                 }
                 case ISTATE.CONTINUOUSDRAW:
                 {
@@ -414,8 +590,7 @@ namespace CG
                     }
                     else 
                     {
-                        Primitive line = new Primitive(GLMousePosition, color);
-                        Primitives.Add(line);
+                        Primitive line = AddPrimitive(GLMousePosition, color);
                         line.addDot(GLMousePosition,0);
                         iState.toggleDraw(Primitives.Count - 1, line.getDots().Length - 1);
                         iState.ToggleContiniousDraw(true);
@@ -448,9 +623,19 @@ namespace CG
                         iState.type = TYPE.NONE;
 
                     }
-
-
-                        break;
+                    break;
+                }
+                case ISTATE.SELECTION: 
+                {
+                    if (hoverID != -1) 
+                    {
+                        SelectedAdd(new Selection(hoverOn.right, hoverID, hoverOn.left));
+                    }
+                    else 
+                    {
+                        selected.Clear();
+                    }
+                    break;
                 }
             }
             
@@ -520,6 +705,96 @@ namespace CG
                 cameraZ = -0.25f;
             }
             Configs.changeCameraZ(cameraZ);
+        }
+
+        private void DeleteButtonDown() 
+        {
+            foreach (var select in selected
+                .Where(x => x.type == TYPE.BODY)
+                .OrderByDescending(x => x.pid))
+            {
+                MarkPrimitiveDeletion(select.pid);
+            }
+            
+
+            foreach (var select in selected
+            .Where(x => x.type == TYPE.EDGE)
+            .OrderByDescending(x => x.id))
+            {
+                if (Primitives[select.pid] != null)
+                    Primitives[select.pid].removeEdge(select.id);
+            }
+
+
+
+            foreach (var select in selected
+                .Where(x => x.type == TYPE.DOT)
+                .OrderByDescending(x => x.id))
+            {
+
+                Primitives[select.pid].removeDot(select.id);
+
+            }
+
+            Primitives.RemoveAll(x => x == null);
+            selected.Clear();
+        }
+
+        private void SelectedAdd(Selection select) 
+        {
+            switch (select.type) 
+            {
+                case TYPE.BODY:
+                {
+                    selected.RemoveAll(x => x.pid == select.pid);
+                    selected.Add(select);
+                    break;
+                }
+                case TYPE.DOT:
+                case TYPE.EDGE:
+                {
+                    if (!selected.Contains(select) && !selected.Any(x => x.pid == select.pid && x.type == TYPE.BODY))
+                    {
+                        selected.Add(select);
+                    }
+                    break;
+                }
+            }
+        }
+        private Primitive AddPrimitive(Vector3 dot, Vector3 color) 
+        {
+            Primitive line = new Primitive(dot, color);
+            Primitives.Add(line);
+            groups[curGroup].Add(Primitives.Count - 1);
+            return line;
+        }
+
+        private void toggleGroup() 
+        {
+            curGroup++;
+            if (curGroup > groups.Count - 1)
+            {
+                curGroup = 0;
+            }
+            updateGroupNumber();
+        }
+        private void MarkPrimitiveDeletion(int id) 
+        {
+            for (int i = 0; i < groups.Count; i++) 
+            {
+                var j = groups[i].IndexOf(id);
+                if (j != -1)
+                {
+                    groups[i].RemoveAt(j);
+                    if (groups[i].Count == 0 && i != 0 ) 
+                    {
+                        groups.RemoveAt(i);
+                        toggleGroup();
+                    }
+                    break;
+                }
+            }
+            Primitives[id] = null;
         }
 
     }
