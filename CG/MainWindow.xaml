@@ -22,6 +22,14 @@
                                Keyboard.KeyUp="openGLControl_KeyUp"
                                SizeChanged="openGLControl_SizeChanged"
                                />
-
+                            <TextBlock
+                            x:Name="InputModeText"
+                            Text=""
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Margin="10"
+                            Foreground="White"
+                            Background="#80000000"
+                            Padding="5" />
     </Grid>
 </Window>

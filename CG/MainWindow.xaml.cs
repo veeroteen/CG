@@ -19,8 +19,8 @@ namespace CG // Укажите ваше имя проекта
 
         private void OpenGLControl_OpenGLInitialized(object sender, EventArgs e)
         {
-            handler = new GLHandler(openGLControl);
-            
+            handler = new GLHandler(this);
+            handler.updateIO();
         }
 
         private void OpenGLControl_OpenGLDraw(object sender, SharpGL.WPF.OpenGLRoutedEventArgs args)

@@ -48,13 +48,16 @@ namespace CG
                    * Math.Abs(CameraPos.Z));
 
             float visibleWidth =
-                visibleHeight * (Size.X / Size.Y);
+                visibleHeight * Size.X / Size.Y;
+
+            float centerX = -CameraPos.X;
+            float centerY = -CameraPos.Y;
 
             return new Rect(
-                -visibleWidth / 2.0f - CameraPos.X,
-                -visibleHeight / 2.0f - CameraPos.Y,
-                 visibleWidth / 2.0f - CameraPos.X,
-                 visibleHeight / 2.0f - CameraPos.Y
+                centerX - visibleWidth / 2.0f, 
+                centerY + visibleHeight / 2.0f,
+                centerX + visibleWidth / 2.0f,  
+                centerY - visibleHeight / 2.0f 
             );
         }
 
@@ -125,10 +128,11 @@ namespace CG
         private List<Vector3> Dots;
         private List<Pair<int,int>> Edges;
         private Rect _box;
+        private Vector3 _center;
         public bool closed { private set; get; }
         public Vector3 color;
         public ref readonly Rect Box => ref _box;
-
+        public ref readonly Vector3 Center => ref _center;
         private Primitive()
         {
             Edges = new List<Pair<int, int>>();
@@ -140,23 +144,64 @@ namespace CG
             Edges = new List<Pair<int,int>>();
             Dots = new List<Vector3>();
             Dots.Add(dot);
+            _center = dot;
             this.color = color;
             _box = new Rect(dot.X, dot.Y, dot.X, dot.Y);
         }
-
-        public void addDot(Vector3 dot, int scopedTo = -1) 
+        public void addDot(Vector3 dot, int scopedTo = -1)
         {
-            if(scopedTo != -1) 
+            if (scopedTo != -1)
             {
                 Dots.Add(dot);
                 addEdge(scopedTo, Dots.Count - 1);
                 recalcBox();
+                recalcCenter();
                 return;
             }
             Dots.Add(dot);
             recalcBox();
+            recalcCenter();
             return;
 
+        }
+
+        public void recalcCenter(Vector3 dot) 
+        {
+            Func<float, float, float> shortcut = (newdot, oldcenter) =>
+            {
+                return ((oldcenter * (Dots.Count - 1)) + newdot) / Dots.Count;
+
+            };
+
+            _center = new Vector3(shortcut(dot.X, _center.X), shortcut(dot.Y, _center.Y), shortcut(dot.Z, _center.Z));
+        }
+
+        public void recalcCenter(int i)
+        {
+            Func<float, float, float> shortcut = (newdot, oldcenter) =>
+            {
+                return ((oldcenter * (Dots.Count - 1)) + newdot) / Dots.Count;
+
+            };
+
+            _center = new Vector3(shortcut(Dots[i].X, _center.X), shortcut(Dots[i].Y, _center.Y), shortcut(Dots[i].Z, _center.Z));
+        }
+
+        public void recalcCenter()
+        {
+            var tmp = new Vector3(0.0f, 0.0f,0.0f);
+
+            foreach (var dot in Dots)
+            {
+                tmp.X += dot.X;
+                tmp.Y += dot.Y;
+                tmp.Z += dot.Z;
+            }
+            tmp.X /= Dots.Count;
+            tmp.Y /= Dots.Count;
+            tmp.Z /= Dots.Count;
+
+            _center = tmp;
         }
 
 
@@ -179,6 +224,46 @@ namespace CG
         {
             Dots[i] = dot;
         }
+
+
+        public void changeEdgePosFlow(Vector3 delta, int i)
+        {
+            var edge = Edges[i];
+            Dots[edge.right] = new Vector3(Dots[edge.right].X + delta.X, Dots[edge.right].Y + delta.Y, Dots[edge.right].Z + delta.Z);
+            Dots[edge.left] = new Vector3(Dots[edge.left].X + delta.X, Dots[edge.left].Y + delta.Y, Dots[edge.left].Z + delta.Z);
+        }
+        public void changePosFlow(Vector3 delta)
+        {
+
+            for(int i = 0; i < Dots.Count; i++) 
+            {
+                Dots[i] = Dots[i] + delta;
+            }
+            recalcBox();
+            recalcCenter();
+        }
+
+
+
+        private bool checkClosed() 
+        {
+            List<int> tmp = Enumerable.Repeat(0, Dots.Count).ToList();
+            foreach (var edge in Edges)
+            {
+                tmp[edge.left]++;
+                tmp[edge.right]++;
+            }
+            foreach(int d in tmp) 
+            {
+                if(d < 2) 
+                {
+                    return false;
+                }
+            
+            }
+            return true;
+        }
+
         public bool snap(Pair<int,TYPE> hoverOn, int scopedTo = -1)
         {
             switch (hoverOn.right) 
@@ -203,8 +288,10 @@ namespace CG
                                 Edges[i] = edge;
                             }
                         }
-
                         Dots.RemoveAt(scopedTo);
+
+                        closed = checkClosed();
+
                         return true;
                     }
                     else 
@@ -228,6 +315,12 @@ namespace CG
                 }
             }
             return false;
+        }
+
+        public void recalcMISK()
+        {
+            recalcBox();
+            recalcCenter();
         }
 
         public void recalcBox()
@@ -290,6 +383,7 @@ namespace CG
                         return new Pair<int, TYPE>(-1, TYPE.BODY);
                     }
                 }
+
                 return new Pair<int, TYPE>(-1, TYPE.BOX);
             }
             return new Pair<int, TYPE>(-1, TYPE.NONE);

@@ -45,8 +45,8 @@ namespace CG
         {
             return Left <= other.Right &&
                    Right >= other.Left &&
-                   Top <= other.Bottom &&
-                   Bottom >= other.Top;
+                   Top >= other.Bottom &&
+                   Bottom <= other.Top;
         }
     }
 

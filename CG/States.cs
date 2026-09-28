@@ -17,7 +17,8 @@ namespace CG
         FREE,
         DRAW,
         CONTINUOUSDRAW,
-        MOVE
+        MOVE,
+        SELECTION
     }
 
 
@@ -26,19 +27,24 @@ namespace CG
     {
         public int pID;
         public int DotID;
+        public TYPE type;
         public ISTATE Istate { get; protected set; }
-        public IState(ISTATE state,int pid = -1, int did = -1) 
+        private readonly Action callback;
+        public IState(Action callback,ISTATE state,int pid = -1, int did = -1) 
         {
+            this.callback = callback;
             Istate = state;
             pID = pid;
             DotID = did;
-            
+            type = TYPE.NONE;
         }
         public void toggleDraw(int pid, int did) 
         {
             pID = pid;
             DotID = did;
             Istate = ISTATE.DRAW;
+            type = TYPE.DOT;
+            callback();
         }
         public void ToggleContiniousDraw(bool flag) 
         {
@@ -53,7 +59,7 @@ namespace CG
                     Istate = ISTATE.DRAW;
                 }
             }
-        
+            callback();
         }
 
         public void ToggleFreeState() 
@@ -61,8 +67,16 @@ namespace CG
             Istate = ISTATE.FREE;
             pID = -1;
             DotID = -1;
+            type = TYPE.NONE;
+            callback();
         }
-
+        public void ToggleMoveState()
+        {
+            Istate = ISTATE.MOVE;
+            pID = -1;
+            DotID = -1;
+            callback();
+        }
     }
 
 

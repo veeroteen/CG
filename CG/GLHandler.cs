@@ -16,22 +16,18 @@ namespace CG
     {
         private OpenGL gl;
         private List<Primitive> Primitives;
-
+        private List<List<int>> groups;
         private OSTATE oState = OSTATE.MESH;
-        private IState iState = new(ISTATE.FREE);
+        private IState iState;
         private bool dragCameraState = false;
         private Vector2 mousePosition;
         private Vector3 GLMousePosition;
-
+        private MainWindow _window;
         private Pair<int,TYPE> hoverOn = new Pair<int,TYPE>(-1,TYPE.NONE);
         private int hoverID = -1;
         private Queue<InputEvent> inputQueue = new Queue<InputEvent>();
         private void draw(List<int> drawables) 
         {
-            if (iState.pID != -1)
-            {
-                Primitives[iState.pID].changeDotPosFlow(new Vector3((float)GLMousePosition.X, (float)GLMousePosition.Y, 0), Primitives[iState.pID].getAmOfDots() - 1);
-            }
 
             if (hoverOn.right == TYPE.EDGE)
             {
@@ -58,6 +54,82 @@ namespace CG
                 gl.End();
             }
 
+            if (hoverOn.right == TYPE.BODY)
+            {
+                var dots = Primitives[hoverID].getDots();
+                gl.Color(1.0f, 1.0f, 1.0f);
+                gl.LineWidth(4.0f);
+
+                foreach (var edge in Primitives[hoverID].getEdges())
+                {
+                    gl.Begin(OpenGL.GL_LINES);
+                    gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                    gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                    gl.End();
+                }
+                gl.PointSize(8.0f);
+                gl.Color(1.0f, 1.0f, 1.0f);
+
+                for (int i = 0; i < dots.Length; i++)
+                {
+
+                    gl.Begin(OpenGL.GL_POINTS);
+                    gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
+                    gl.End();
+                }
+
+
+                var center = Primitives[hoverID].Center;
+                float size = 0.1f;
+
+                gl.LineWidth(3.0f);
+                gl.Color(1.0f, 1.0f, 1.0f);
+
+                gl.Begin(OpenGL.GL_LINES);
+
+                // X
+                gl.Vertex(center.X - size, center.Y, center.Z);
+                gl.Vertex(center.X + size, center.Y, center.Z);
+
+                // Y
+                gl.Vertex(center.X, center.Y - size, center.Z);
+                gl.Vertex(center.X, center.Y + size, center.Z);
+
+                gl.End();
+
+
+
+
+            }
+
+
+
+            if (iState.Istate == ISTATE.MOVE && iState.pID != -1) 
+            {
+                switch (iState.type)
+                {
+                    case TYPE.DOT:
+                    {
+                        var dots = Primitives[iState.pID].getDots();
+                        gl.PointSize(8.0f);
+                        gl.Color(1.0f, 1.0f, 1.0f);
+                        gl.Begin(OpenGL.GL_POINTS);
+                        gl.Vertex(dots[iState.DotID].X, dots[iState.DotID].Y, dots[iState.DotID].Z);
+                        gl.End();
+                        break;
+                    }
+                    case TYPE.EDGE:
+                    {
+
+
+                        break;
+                    }
+                    case TYPE.BODY:
+                    {
+                        break;
+                    }
+                }
+            }
 
 
             foreach (var primitive in drawables)
@@ -85,8 +157,6 @@ namespace CG
                 for (int i = 0; i < dots.Length; i++)
                 {
                     
-                    gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
-
                     gl.PointSize(4.0f);
                     gl.Color(0.0f, 1.0f, 0.0f);
                     gl.Begin(OpenGL.GL_POINTS);
@@ -100,26 +170,30 @@ namespace CG
         public void Update( Vector2 mousePosition)
         {
             List<int> drawables = new List<int>();
-            Rect screenRect = Configs.ScreenRect;
+            float dx = GLMousePosition.X, dy = GLMousePosition.Y;
+            this.mousePosition = mousePosition;
 
-
-            if (dragCameraState) 
+            if (dragCameraState)
             {
-                float tx = GLMousePosition.X, ty = GLMousePosition.Y;
+                dx = GLMousePosition.X;
+                dy = GLMousePosition.Y;
                 Vector3 tmp = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
-                tx = tmp.X - tx;
-                ty = tmp.Y - ty;
-                Configs.changeCameraPos(tx + Configs.CameraPos.X, ty + Configs.CameraPos.Y);
+                dx = tmp.X - dx;
+                dy = tmp.Y - dy;
+                Configs.changeCameraPos(dx + Configs.CameraPos.X, dy + Configs.CameraPos.Y);
                 GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
             }
-            else
+            else 
             {
                 GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
-            }
+                dx = GLMousePosition.X - dx;
+                dy = GLMousePosition.Y - dy;
 
+            }
+            
             for (int i = 0; i < Primitives.Count; i++)
             {
-                if (Primitives[i].intersect(screenRect))
+                if (Primitives[i].intersect(Configs.ScreenRect))
                 {
                     drawables.Add(i);
                 }
@@ -127,9 +201,11 @@ namespace CG
             hoverOn = new Pair<int, TYPE>(-1, TYPE.NONE);
             hoverID = -1;
             
+
             foreach (int i in drawables) 
             {
                 var tmp = Primitives[i].intersect(GLMousePosition,iState.DotID);
+                
                 if(tmp.right == TYPE.DOT)
                 {
                     hoverID = i;
@@ -142,7 +218,7 @@ namespace CG
                     hoverOn = tmp;
                     continue;
                 }
-                else if(tmp.right == TYPE.BODY) 
+                else if(tmp.right == TYPE.BODY && (iState.pID != i)) 
                 {
                     hoverID = i;
                     hoverOn = tmp;
@@ -152,23 +228,48 @@ namespace CG
             
             inputHandle();
 
-            this.mousePosition = mousePosition;
+            
+
+
             gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT | OpenGL.GL_DEPTH_BUFFER_BIT);
             gl.LoadIdentity();
 
             gl.Translate(Configs.CameraPos.X, Configs.CameraPos.Y, Configs.CameraPos.Z);
 
 
-
+            if (iState.pID != -1)
+            {
+                switch (iState.type)
+                {
+                    case TYPE.DOT:
+                    {
+                        Primitives[iState.pID].changeDotPosFlow(new Vector3((float)GLMousePosition.X, (float)GLMousePosition.Y, 0), iState.DotID);
+                        break;
+                    }
+                    case TYPE.EDGE:
+                    {
+                        Primitives[iState.pID].changeEdgePosFlow(new Vector3(dx, dy,0) ,iState.DotID);
+                        break;
+                    }
+                    case TYPE.BODY: 
+                    {
+                        Primitives[iState.pID].changePosFlow(new Vector3(dx, dy, 0));
+                        break;
+                    }
+                }
+            }
+            
 
             draw(drawables);
 
             gl.Flush();
         }
-        public GLHandler(OpenGLControl control)
+        public GLHandler(MainWindow window)
         {
+            iState = new IState(updateIO, ISTATE.FREE);
+            _window = window;
             Primitives = new List<Primitive>();
-            gl = control.OpenGL;
+            gl = window.openGLControl.OpenGL;
             gl.ClearColor(0.5f, 0.5f, 0.5f, 1.0f);
             gl.PointSize(6.0f);
             gl.Enable(OpenGL.GL_POINT_SMOOTH);
@@ -248,7 +349,9 @@ namespace CG
                     case Key.LeftCtrl:
                         ControlKeyDown();
                         break;
-
+                    case Key.T:
+                        ToggleIMode();
+                        break;
                 }
             }
             else
@@ -260,6 +363,22 @@ namespace CG
                         break;
                 }
             }
+        }
+        private void ToggleIMode() 
+        {
+            if(iState.Istate == ISTATE.FREE) 
+            {
+                iState.ToggleMoveState();
+            }
+            else if(iState.Istate == ISTATE.MOVE) 
+            {
+                iState.ToggleFreeState();
+            }
+        
+        }
+        public void updateIO() 
+        {
+            _window.InputModeText.Text = iState.Istate.ToString();
         }
         private void ExecuteButtonDown()
         {
@@ -284,12 +403,12 @@ namespace CG
                     {
                         if (!Primitives[iState.pID].snap(hoverOn,iState.DotID))
                         {
-                            
                             Primitives[iState.pID].addDot(GLMousePosition,iState.DotID);
                             iState.DotID = Primitives[iState.pID].getAmOfDots() - 1;
                         }
                         else 
                         {
+                            Primitives[iState.pID].recalcCenter();
                             iState.ToggleFreeState();
                         }
                     }
@@ -305,11 +424,33 @@ namespace CG
                 }
                 case ISTATE.DRAW:
                 {
-                    Primitives[iState.pID].snap(hoverOn,iState.DotID);
+                    Primitives[iState.pID].snap(hoverOn, iState.DotID);
                     Primitives[iState.pID].recalcBox();
+                    Primitives[iState.pID].recalcCenter();
                     iState.ToggleFreeState();
                     
                     break;
+                }
+                case ISTATE.MOVE: 
+                {
+                    if(hoverID != -1) 
+                    {
+                        iState.pID = hoverID;
+                        iState.DotID = hoverOn.left;
+                        iState.type = hoverOn.right;
+                    }
+                    else if(iState.pID != -1) 
+                    {
+                        Primitives[iState.pID].recalcCenter();
+                        Primitives[iState.pID].recalcBox();
+                        iState.pID = -1;
+                        iState.DotID = -1;
+                        iState.type = TYPE.NONE;
+
+                    }
+
+
+                        break;
                 }
             }
             
