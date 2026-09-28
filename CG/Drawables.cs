@@ -156,14 +156,36 @@ namespace CG
                 addEdge(scopedTo, Dots.Count - 1);
                 recalcBox();
                 recalcCenter();
+                closed = checkClosed();
                 return;
             }
             Dots.Add(dot);
             recalcBox();
             recalcCenter();
+            closed = checkClosed();
             return;
-
         }
+        public void removeDot(int id) 
+        {
+            for (int i = Edges.Count - 1; i >= 0; i--)
+            {
+                if (Edges[i].right == id || Edges[i].left == id)
+                {
+                    Edges.RemoveAt(i);
+                }
+            }
+
+            for (int i = 0; i < Edges.Count;i++)
+            {
+                if (Edges[i].left > id)
+                    Edges[i] = new Pair<int, int>(Edges[i].left - 1, Edges[i].right);
+
+                if (Edges[i].right > id)
+                    Edges[i] = new Pair<int, int>(Edges[i].left, Edges[i].right-1);
+            }
+            Dots.RemoveAt(id);
+        }
+
 
         public void recalcCenter(Vector3 dot) 
         {
@@ -211,6 +233,10 @@ namespace CG
             Edges.Add(new Pair<int,int>(i, j));
         }
 
+        public void removeEdge(int id)
+        {
+            Edges.RemoveAt(id);
+        }
         public void divideEdge(int edge, int dot)
         {
             Dots[dot] = Collision.GetClosestPointOnEdge(Dots[Edges[edge].right], Dots[Edges[edge].left], Dots[dot]);
@@ -245,7 +271,7 @@ namespace CG
 
 
 
-        private bool checkClosed() 
+        public bool checkClosed() 
         {
             List<int> tmp = Enumerable.Repeat(0, Dots.Count).ToList();
             foreach (var edge in Edges)

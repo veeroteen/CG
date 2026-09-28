@@ -19,8 +19,8 @@ namespace CG
 
     public struct Pair<L,R>
     {
-        public L left;
-        public R right;
+        public L left { get; set; }
+        public R right { get; set; }
         
         public Pair(L left,R right)
         {
@@ -142,6 +142,19 @@ namespace CG
         }
     }
 
+    public struct Selection 
+    {
+        public TYPE type { get; private set; }
+        public int pid { get; private set; }
+        public int id { get; private set; }
+        public Selection(TYPE type, int pid, int id)
+        {
+            this.type = type;
+            this.pid = pid;
+            this.id = id;
+        }    
+    
+    }
 
 }
 
