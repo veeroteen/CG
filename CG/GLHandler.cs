@@ -35,7 +35,9 @@ namespace CG
             selected = new List<Selection>();
             groups = new List<List<int>>();
             groups.Add(new List<int>());
-            iState = new IState(updateIO, ISTATE.FREE);
+
+            iState = new IState(updateIO, ISTATE.DRAW);
+
             _window = window;
             Primitives = new List<Primitive>();
             gl = window.openGLControl.OpenGL;
@@ -245,12 +247,6 @@ namespace CG
                             gl.End();
                         }
 
-
-
-
-
-
-
                         break;
                     }
                 }
@@ -307,15 +303,13 @@ namespace CG
                 Configs.changeCameraPos(dx + Configs.CameraPos.X, dy + Configs.CameraPos.Y);
                 GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
             }
-            else 
+            else
             {
                 GLMousePosition = Translator.toScreen(mousePosition, Configs.CameraPos.Z);
                 dx = GLMousePosition.X - dx;
                 dy = GLMousePosition.Y - dy;
-
             }
             inputHandle();
-
 
             for (int i = 0; i < Primitives.Count; i++)
             {
@@ -326,12 +320,12 @@ namespace CG
             }
             hoverOn = new Pair<int, TYPE>(-1, TYPE.NONE);
             hoverID = -1;
-            
 
-            foreach (int i in drawables) 
+
+            foreach (int i in drawables)
             {
                 var tmp = Primitives[i].intersect(GLMousePosition,iState.DotID);
-                
+
                 if(tmp.right == TYPE.DOT)
                 {
                     hoverID = i;
@@ -351,7 +345,7 @@ namespace CG
                     continue;
                 }
             }
-            
+
             
 
             
@@ -368,32 +362,20 @@ namespace CG
                 switch (iState.type)
                 {
                     case TYPE.DOT:
-                    {
                         Primitives[iState.pID].changeDotPosFlow(new Vector3((float)GLMousePosition.X, (float)GLMousePosition.Y, 0), iState.DotID);
                         break;
-                    }
                     case TYPE.EDGE:
-                    {
-                        Primitives[iState.pID].changeEdgePosFlow(new Vector3(dx, dy,0) ,iState.DotID);
+                        Primitives[iState.pID].changeEdgePosFlow(new Vector3(dx, dy, 0), iState.DotID);
                         break;
-                    }
-                    case TYPE.BODY: 
-                    {
+                    case TYPE.BODY:
                         Primitives[iState.pID].changePosFlow(new Vector3(dx, dy, 0));
                         break;
-                    }
                 }
             }
-            
 
             draw(drawables);
-
             gl.Flush();
         }
-
-
-
-
         public void addToInputQueue(InputEvent e)
         {
             inputQueue.Enqueue(e);
@@ -421,36 +403,41 @@ namespace CG
                         ChangeScale(wheelInput.delta > 0 ? 1 : -1);
                         break;
                     }
-                
-                
+                    case KEYT.UI:
+                    {
+                        UIInputModeChangeEvent uiEvent = (UIInputModeChangeEvent)e;
+                        if (iState.Istate != uiEvent.NewState)
+                        {
+                            ApplyStateFromUI(uiEvent.NewState);
+                        }
+                        break;
+                    }
+
+
                 }
             }
         }
-        private void MouseHandle(MouseKeyInput e) 
+        private void MouseHandle(MouseKeyInput e)
         {
-            if (e.state == System.Windows.Input.MouseButtonState.Pressed) 
+            if (e.state == System.Windows.Input.MouseButtonState.Pressed)
             {
                 switch (e.button)
                 {
                     case MouseButton.Left:
-                        ExecuteButtonDown();
+                        ExecuteAction();
                         break;
                     case MouseButton.Right:
+                        CancelAction();
                         break;
                     case MouseButton.Middle:
                         DragCameraSwitch(true);
                         break;
                 }
             }
-            else 
+            else
             {
                 switch (e.button)
                 {
-                    case MouseButton.Left:
-                        ExecuteButtonUp();
-                        break;
-                    case MouseButton.Right:
-                        break;
                     case MouseButton.Middle:
                         DragCameraSwitch(false);
                         break;
@@ -463,9 +450,6 @@ namespace CG
             {
                 switch (e.key)
                 {
-                    case Key.LeftCtrl:
-                        ControlKeyDown();
-                        break;
                     case Key.T:
                         ToggleIMode();
                         break;
@@ -502,195 +486,124 @@ namespace CG
                     }
                 }
             }
-            else
-            {
-                switch (e.key)
-                {
-                    case Key.LeftCtrl:
-                        ControlKeyUp();
-                        break;
-                }
-            }
         }
-        private void ToggleIMode() 
+        private void ToggleIMode()
         {
-            if(iState.Istate == ISTATE.FREE) 
-            {
-                iState.ToggleMoveState();
-            }
-            else if(iState.Istate == ISTATE.MOVE) 
-            {
-                iState.ToggleSelectionState();
-            }
-            else if (iState.Istate == ISTATE.SELECTION)
-            {
-                selected.Clear();
-                iState.ToggleFreeState();
-            }
+            if (iState.Istate == ISTATE.DRAW) iState.SetState(ISTATE.MOVE);
+            else if (iState.Istate == ISTATE.MOVE) iState.SetState(ISTATE.SELECTION);
+            else if (iState.Istate == ISTATE.SELECTION) iState.SetState(ISTATE.DRAW);
         }
 
-        public void updateIO() 
+        public void updateIO()
         {
-            _window.InputModeText.Text = iState.Istate.ToString();
+            if (_window.InputModeComboBox != null)
+            {
+                if (_window.InputModeComboBox.ItemsSource == null)
+                {
+                    _window.InputModeComboBox.ItemsSource = new ISTATE[]
+                    {
+                        ISTATE.DRAW,
+                        ISTATE.MOVE,
+                        ISTATE.SELECTION
+                    };
+                }
+
+                _window.InputModeComboBox.SelectedItem = iState.Istate;
+            }
         }
         public void updateGroupNumber() 
         {
             _window.CurrentGroup.Text = curGroup.ToString();
         }
 
-
-        private void ExecuteButtonDown()
+        private void ExecuteAction()
         {
             Vector3 color = new Vector3(1.0f, 0.0f, 0.0f);
-            
-            Console.WriteLine($" OpenGL: X={GLMousePosition.X:F2}, Y={GLMousePosition.Y:F2}, Y={Configs.CameraPos.Z:F2}");
-            
-            switch (iState.Istate) 
+
+            switch (iState.Istate)
             {
-                case ISTATE.FREE:
-                {
-                    if (hoverID == -1)
+                case ISTATE.DRAW:
+                    if (iState.pID != -1)
                     {
-                        Primitive line = AddPrimitive(GLMousePosition, color);
-                        line.addDot(GLMousePosition, 0);
-                        iState.toggleDraw(Primitives.Count - 1, line.getDots().Length - 1);
-                    }
-                    else 
-                    {
-                        if (hoverOn.right == TYPE.DOT)
+                        if (!Primitives[iState.pID].snap(hoverOn, iState.DotID))
                         {
-                            Primitives[hoverID].addDot(GLMousePosition, hoverOn.left);
-                            iState.toggleDraw(hoverID, Primitives[hoverID].getDots().Length - 1);
+                            Primitives[iState.pID].addDot(GLMousePosition, iState.DotID);
+                            iState.SetActiveDrawPrimitive(iState.pID, Primitives[iState.pID].getAmOfDots() - 1);
                         }
-                        else if(hoverOn.right == TYPE.EDGE) 
+                        else
                         {
-                            Primitives[hoverID].addDot(GLMousePosition);
-                            Primitives[hoverID].divideEdge(hoverOn.left, Primitives[hoverID].getDots().Length - 1);
-                            Primitives[hoverID].addDot(GLMousePosition, Primitives[hoverID].getDots().Length - 1);
-                            iState.toggleDraw(hoverID, Primitives[hoverID].getDots().Length - 1);
+                            Primitives[iState.pID].recalcCenter();
+                            iState.SetState(ISTATE.DRAW);
+                        }
+                    }
+                    else
+                    {
+                        if (hoverID == -1)
+                        {
+                            Primitive line = AddPrimitive(GLMousePosition, color);
+                            line.addDot(GLMousePosition, 0);
+                            iState.SetActiveDrawPrimitive(Primitives.Count - 1, line.getDots().Length - 1);
+                        }
+                        else
+                        {
+                            if (hoverOn.right == TYPE.DOT)
+                            {
+                                Primitives[hoverID].addDot(GLMousePosition, hoverOn.left);
+                                iState.SetActiveDrawPrimitive(hoverID, Primitives[hoverID].getDots().Length - 1);
+                            }
+                            else if (hoverOn.right == TYPE.EDGE)
+                            {
+                                Primitives[hoverID].addDot(GLMousePosition);
+                                Primitives[hoverID].divideEdge(hoverOn.left, Primitives[hoverID].getDots().Length - 1);
+                                Primitives[hoverID].addDot(GLMousePosition, Primitives[hoverID].getDots().Length - 1);
+                                iState.SetActiveDrawPrimitive(hoverID, Primitives[hoverID].getDots().Length - 1);
+                            }
                         }
                     }
                     break;
 
-                }
-                case ISTATE.CONTINUOUSDRAW:
-                {
-                    if (iState.pID != -1)
-                    {
-                        if (!Primitives[iState.pID].snap(hoverOn,iState.DotID))
-                        {
-                            Primitives[iState.pID].addDot(GLMousePosition,iState.DotID);
-                            iState.DotID = Primitives[iState.pID].getAmOfDots() - 1;
-                        }
-                        else 
-                        {
-                            Primitives[iState.pID].recalcCenter();
-                            iState.ToggleFreeState();
-                        }
-                    }
-                    else 
-                    {
-                        Primitive line = AddPrimitive(GLMousePosition, color);
-                        line.addDot(GLMousePosition,0);
-                        iState.toggleDraw(Primitives.Count - 1, line.getDots().Length - 1);
-                        iState.ToggleContiniousDraw(true);
-                    }
-                    break;
-                }
-                case ISTATE.DRAW:
-                {
-                    Primitives[iState.pID].snap(hoverOn, iState.DotID);
-                    Primitives[iState.pID].recalcBox();
-                    Primitives[iState.pID].recalcCenter();
-                    iState.ToggleFreeState();
-                    
-                    break;
-                }
-                case ISTATE.MOVE: 
-                {
-                    if(hoverID != -1) 
+                case ISTATE.MOVE:
+                    if (hoverID != -1)
                     {
                         iState.pID = hoverID;
                         iState.DotID = hoverOn.left;
                         iState.type = hoverOn.right;
                     }
-                    else if(iState.pID != -1) 
+                    else if (iState.pID != -1)
                     {
                         Primitives[iState.pID].recalcCenter();
                         Primitives[iState.pID].recalcBox();
-                        iState.pID = -1;
-                        iState.DotID = -1;
-                        iState.type = TYPE.NONE;
-
+                        iState.SetState(ISTATE.MOVE);
                     }
                     break;
-                }
-                case ISTATE.SELECTION: 
-                {
-                    if (hoverID != -1) 
+
+                case ISTATE.SELECTION:
+                    if (hoverID != -1)
                     {
                         SelectedAdd(new Selection(hoverOn.right, hoverID, hoverOn.left));
                     }
-                    else 
-                    {
-                        selected.Clear();
-                    }
                     break;
-                }
             }
-            
         }
-        private void ExecuteButtonUp() 
-        {
-
-        }
-        private void ControlKeyDown() 
+        private void CancelAction()
         {
             switch (iState.Istate)
             {
-                case ISTATE.FREE:
-                {
-                    iState.ToggleContiniousDraw(true);
-                    break;
-                }
                 case ISTATE.DRAW:
-                {
-                    iState.ToggleContiniousDraw(true);
-                    break;
-                }
-                case ISTATE.CONTINUOUSDRAW:
-                {
-                    break;
-                }
-            }
-        }
-        private void ControlKeyUp()
-        {
-            switch (iState.Istate)
-            {
-                case ISTATE.FREE:
-                {
-                    break;
-                }
-                case ISTATE.DRAW:
-                {
-                    break;
-                }
-                case ISTATE.CONTINUOUSDRAW:
-                {
-                    if (iState.pID != -1 )
+                    if (iState.pID != -1)
                     {
-                        iState.ToggleContiniousDraw(false);
-                    }
-                    else 
-                    {
-                        iState.ToggleFreeState();
+                        Primitives[iState.pID].removeDot(iState.DotID);
+                        Primitives[iState.pID].recalcMISK();
+                        iState.SetState(ISTATE.DRAW);
                     }
                     break;
-                }
-            }
 
+                case ISTATE.SELECTION or ISTATE.MOVE:
+                    selected.Clear();
+                    break;
+            }
         }
+
         private void DragCameraSwitch(bool state) 
         {
             dragCameraState = state;
@@ -795,6 +708,10 @@ namespace CG
                 }
             }
             Primitives[id] = null;
+        }
+        public void ApplyStateFromUI(ISTATE state)
+        {
+            iState.SetState(state);
         }
 
     }

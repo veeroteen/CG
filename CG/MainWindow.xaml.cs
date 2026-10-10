@@ -59,6 +59,14 @@ namespace CG // Укажите ваше имя проекта
             Configs.changeSize(new Vector2((float)openGLControl.ActualWidth, (float)openGLControl.ActualHeight));
         }
 
+        private void InputModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (handler != null && InputModeComboBox.SelectedItem is ISTATE selectedState)
+            {
+                handler.addToInputQueue(new UIInputModeChangeEvent(selectedState));
 
+                openGLControl.Focus();
+            }
+        }
     }
 }

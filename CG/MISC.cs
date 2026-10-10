@@ -17,20 +17,19 @@ namespace CG
         }
     }
 
-    public struct Pair<L,R>
+    public struct Pair<L, R>
     {
         public L left { get; set; }
         public R right { get; set; }
-        
-        public Pair(L left,R right)
+
+        public Pair(L left, R right)
         {
             this.left = left;
             this.right = right;
         }
-
     }
 
-    public struct Rect 
+    public struct Rect
     {
         public float Left, Top, Right, Bottom;
         public Rect(float left, float top, float right, float bottom)
@@ -56,7 +55,7 @@ namespace CG
         public readonly int DotIndex;
         public Primitive primitive;
 
-        public Collision(TYPE Type,int DotIndex,Primitive primitive)
+        public Collision(TYPE Type, int DotIndex, Primitive primitive)
         {
             this.Type = Type;
             this.DotIndex = DotIndex;
@@ -83,9 +82,8 @@ namespace CG
             float dx = a.X - b.X;
             float dy = a.Y - b.Y;
             return (dx * dx + dy * dy) < (offset * offset);
-
         }
-        public static bool LineCollision(Vector3 lineStart, Vector3 lineEnd, Vector3 dot) 
+        public static bool LineCollision(Vector3 lineStart, Vector3 lineEnd, Vector3 dot)
         {
             float offset = Configs.Offset;
             Vector3 position = GetClosestPointOnEdge(lineStart, lineEnd, dot);
@@ -94,8 +92,8 @@ namespace CG
 
             return distanceSq < (offset * offset);
         }
-        
-        public static Vector3 GetClosestPointOnEdge(Vector3 lineStart, Vector3 lineEnd, Vector3 dot) 
+
+        public static Vector3 GetClosestPointOnEdge(Vector3 lineStart, Vector3 lineEnd, Vector3 dot)
         {
             float offset = Configs.Offset;
             float lineX = lineEnd.X - lineStart.X;
@@ -121,15 +119,14 @@ namespace CG
             float closestX = lineStart.X + t * lineX;
             float closestY = lineStart.Y + t * lineY;
 
-            return new Vector3(closestX,closestY, 0);
-
+            return new Vector3(closestX, closestY, 0);
         }
 
-        public static bool PolygonCollision(Primitive primitive,Vector3 dot) 
+        public static bool PolygonCollision(Primitive primitive, Vector3 dot)
         {
             bool inside = false;
             var polygon = primitive.getDots();
-            for (int i = 0, j = primitive.getAmOfDots()-1; i < primitive.getAmOfDots(); j = i++)
+            for (int i = 0, j = primitive.getAmOfDots() - 1; i < primitive.getAmOfDots(); j = i++)
             {
                 if (((polygon[i].Y > dot.Y) != (polygon[j].Y > dot.Y)) &&
                     (dot.X < (polygon[j].X - polygon[i].X) * (dot.Y - polygon[i].Y) / (polygon[j].Y - polygon[i].Y) + polygon[i].X))
@@ -142,7 +139,7 @@ namespace CG
         }
     }
 
-    public struct Selection 
+    public struct Selection
     {
         public TYPE type { get; private set; }
         public int pid { get; private set; }
@@ -152,18 +149,16 @@ namespace CG
             this.type = type;
             this.pid = pid;
             this.id = id;
-        }    
-    
+        }
     }
-
 }
 
-
-public enum KEYT 
+public enum KEYT
 {
     MOUSE,
     WHEEL,
-    KEYBOARD
+    KEYBOARD,
+    UI // Источник события — комбобокс на экране
 }
 
 public abstract class InputEvent
@@ -174,19 +169,18 @@ public abstract class InputEvent
 public class MouseWheelInput : InputEvent
 {
     public int delta { get; }
-    public MouseWheelInput(System.Windows.Input.MouseWheelEventArgs e) 
+    public MouseWheelInput(System.Windows.Input.MouseWheelEventArgs e)
     {
         Itype = KEYT.WHEEL;
         delta = e.Delta;
     }
 }
 
-
-public class MouseKeyInput : InputEvent 
+public class MouseKeyInput : InputEvent
 {
     public MouseButton button { get; }
     public MouseButtonState state { get; }
-    public MouseKeyInput(MouseButtonEventArgs e) 
+    public MouseKeyInput(MouseButtonEventArgs e)
     {
         Itype = KEYT.MOUSE;
         button = e.ChangedButton;
@@ -198,7 +192,7 @@ public class KeyboardInput : InputEvent
 {
     public Key key { get; }
     public bool down { get; }
-    public KeyboardInput(KeyEventArgs e) 
+    public KeyboardInput(KeyEventArgs e)
     {
         Itype = KEYT.KEYBOARD;
         key = e.Key;
@@ -206,3 +200,12 @@ public class KeyboardInput : InputEvent
     }
 }
 
+public class UIInputModeChangeEvent : InputEvent
+{
+    public CG.ISTATE NewState { get; }
+    public UIInputModeChangeEvent(CG.ISTATE newState)
+    {
+        Itype = KEYT.UI;
+        NewState = newState;
+    }
+}
