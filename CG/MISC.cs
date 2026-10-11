@@ -216,7 +216,8 @@ public enum GROUP_ACTION
     PREVIOUS,
     NEXT,
     CREATE,
-    DELETE
+    DELETE,
+    WIDTH
 }
 
 public class UIGroupChangeEvent : InputEvent
@@ -226,5 +227,14 @@ public class UIGroupChangeEvent : InputEvent
     {
         Itype = KEYT.UIGROUP;
         Action = action;
+    }
+}
+public class UILineWidthChangeEvent : InputEvent
+{
+    public float Width { get; }
+    public UILineWidthChangeEvent(float width)
+    {
+        Itype = KEYT.UIGROUP;
+        Width = width;
     }
 }

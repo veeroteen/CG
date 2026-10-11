@@ -19,6 +19,7 @@ namespace CG
         private OpenGL gl;
         private List<Primitive> Primitives;
         private List<List<int>> groups;
+        private List<float> groupLineWidths;
         private int curGroup = 0;
         private OSTATE oState = OSTATE.MESH;
         private IState iState;
@@ -26,10 +27,20 @@ namespace CG
         private Vector2 mousePosition;
         private Vector3 GLMousePosition;
         private MainWindow _window;
-        private Pair<int,TYPE> hoverOn = new Pair<int,TYPE>(-1,TYPE.NONE);
+        private Pair<int, TYPE> hoverOn = new Pair<int, TYPE>(-1, TYPE.NONE);
         private int hoverID = -1;
         private Queue<InputEvent> inputQueue = new Queue<InputEvent>();
         private List<Selection> selected;
+
+        private readonly Vector3 _selectedColor = new Vector3(0.1f, 0.1f, 1.0f);
+        private readonly Vector3 _hoverColor = new Vector3(1.0f, 1.0f, 1.0f);
+        private readonly Vector3 _vertexColor = new Vector3(0.0f, 1.0f, 0.0f);
+
+        private readonly Vector3 _activeGroupColor = new Vector3(1.0f, 0.0f, 0.0f);
+        private readonly Vector3 _defaultLineColor = new Vector3(1.0f, 0.3f, 0.3f);
+
+        private float hoverObjectWidth = 1.5f;
+
         public GLHandler(MainWindow window)
         {
             selected = new List<Selection>();
@@ -44,81 +55,73 @@ namespace CG
             gl.ClearColor(0.5f, 0.5f, 0.5f, 1.0f);
             gl.PointSize(6.0f);
             gl.Enable(OpenGL.GL_POINT_SMOOTH);
+
+            groupLineWidths = new List<float>();
+            groupLineWidths.Add(1.5f);
             updateGroupNumber();
+
         }
 
-        private void draw(List<int> drawables) 
+        private void draw(List<int> drawables)
         {
-           
-            foreach (var s in selected) 
+            foreach (var s in selected)
             {
                 var dots = Primitives[s.pid].getDots();
                 var edges = Primitives[s.pid].getEdges();
-                switch (s.type) 
+                switch (s.type)
                 {
-                    case TYPE.BODY: 
-                    {
-
-                        
-                        gl.Color(0.1f, 0.1f, 1.0f);
-                        gl.LineWidth(4.0f);
-                        foreach (var edge in edges)
+                    case TYPE.BODY:
                         {
-                            gl.Begin(OpenGL.GL_LINES);
-                            gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
-                            gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
-                            gl.End();
+                            gl.Color(_selectedColor.X, _selectedColor.Y, _selectedColor.Z);
+                            gl.LineWidth(4.0f);
+                            foreach (var edge in edges)
+                            {
+                                gl.Begin(OpenGL.GL_LINES);
+                                gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                                gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                                gl.End();
+                            }
+
+                            gl.PointSize(8.0f);
+                            gl.Color(_selectedColor.X, _selectedColor.Y, _selectedColor.Z);
+                            foreach (var dot in Primitives[s.pid].getDots())
+                            {
+                                gl.Begin(OpenGL.GL_POINTS);
+                                gl.Vertex(dot.X, dot.Y, dot.Z);
+                                gl.End();
+                            }
+                            break;
                         }
-
-                        gl.PointSize(8.0f);
-                        gl.Color(0.1f, 0.1f, 1.0f);
-                        foreach (var dot in Primitives[s.pid].getDots()) 
+                    case TYPE.DOT:
                         {
-
+                            gl.PointSize(8.0f);
+                            gl.Color(_selectedColor.X, _selectedColor.Y, _selectedColor.Z);
                             gl.Begin(OpenGL.GL_POINTS);
-                            gl.Vertex(dot.X,dot.Y,dot.Z);
+                            gl.Vertex(dots[s.id].X, dots[s.id].Y, dots[s.id].Z);
                             gl.End();
+                            break;
                         }
-
-
-
-                        break;
-                    }
-                    case TYPE.DOT: 
-                    {
-                        gl.PointSize(8.0f);
-                        gl.Color(0.1f, 0.1f, 1.0f);
-                        gl.Begin(OpenGL.GL_POINTS);
-                        gl.Vertex(dots[s.id].X, dots[s.id].Y, dots[s.id].Z);
-                        gl.End();
-
-                        break;
-                    }
                     case TYPE.EDGE:
-                    {
-                        gl.Color(0.1f, 0.1f, 1.0f);
-                        gl.LineWidth(4.0f);
-                        gl.Begin(OpenGL.GL_LINES);
-                        gl.Vertex(dots[edges[s.id].left].X, dots[edges[s.id].left].Y, dots[edges[s.id].left].Z);
-                        gl.Vertex(dots[edges[s.id].right].X, dots[edges[s.id].right].Y, dots[edges[s.id].right].Z);
-                        gl.End();
-
-                        break;
-                    }
+                        {
+                            gl.Color(_selectedColor.X, _selectedColor.Y, _selectedColor.Z);
+                            gl.LineWidth(4.0f);
+                            gl.Begin(OpenGL.GL_LINES);
+                            gl.Vertex(dots[edges[s.id].left].X, dots[edges[s.id].left].Y, dots[edges[s.id].left].Z);
+                            gl.Vertex(dots[edges[s.id].right].X, dots[edges[s.id].right].Y, dots[edges[s.id].right].Z);
+                            gl.End();
+                            break;
+                        }
                 }
             }
-
-
-
 
             if (hoverOn.right == TYPE.EDGE)
             {
                 var dots = Primitives[hoverID].getDots();
-                gl.Color(1.0f, 1.0f, 1.0f);
-                gl.LineWidth(4.0f);
+                gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
+
+                gl.LineWidth(hoverObjectWidth + 6.0f);
 
                 var edge = Primitives[hoverID].getEdges()[hoverOn.left];
-
                 gl.Begin(OpenGL.GL_LINES);
                 gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
                 gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
@@ -127,10 +130,9 @@ namespace CG
 
             if (hoverOn.right == TYPE.DOT)
             {
-                
                 var dots = Primitives[hoverID].getDots();
-                gl.PointSize(8.0f);
-                gl.Color(1.0f, 1.0f, 1.0f);
+                gl.PointSize(hoverObjectWidth + 8.0f);
+                gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
                 gl.Begin(OpenGL.GL_POINTS);
                 gl.Vertex(dots[hoverOn.left].X, dots[hoverOn.left].Y, dots[hoverOn.left].Z);
                 gl.End();
@@ -139,8 +141,9 @@ namespace CG
             if (hoverOn.right == TYPE.BODY)
             {
                 var dots = Primitives[hoverID].getDots();
-                gl.Color(1.0f, 1.0f, 1.0f);
-                gl.LineWidth(4.0f);
+                gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
+
+                gl.LineWidth(hoverObjectWidth + 6.0f);
 
                 foreach (var edge in Primitives[hoverID].getEdges())
                 {
@@ -149,145 +152,133 @@ namespace CG
                     gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
                     gl.End();
                 }
-                gl.PointSize(8.0f);
-                gl.Color(1.0f, 1.0f, 1.0f);
 
+                gl.PointSize(hoverObjectWidth + 8.0f);
+                gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
                 for (int i = 0; i < dots.Length; i++)
                 {
-
                     gl.Begin(OpenGL.GL_POINTS);
                     gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
                     gl.End();
                 }
 
-
                 var center = Primitives[hoverID].Center;
                 float size = 0.1f;
-
                 gl.LineWidth(3.0f);
-                gl.Color(1.0f, 1.0f, 1.0f);
-
+                gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
                 gl.Begin(OpenGL.GL_LINES);
-
                 gl.Vertex(center.X - size, center.Y, center.Z);
                 gl.Vertex(center.X + size, center.Y, center.Z);
-
                 gl.Vertex(center.X, center.Y - size, center.Z);
                 gl.Vertex(center.X, center.Y + size, center.Z);
-
                 gl.End();
-
             }
 
-
-            
-            if (iState.Istate == ISTATE.MOVE && iState.pID != -1) 
+            if (iState.Istate == ISTATE.MOVE && iState.pID != -1)
             {
                 switch (iState.type)
                 {
                     case TYPE.DOT:
-                    {
-                        var dots = Primitives[iState.pID].getDots();
-                        gl.PointSize(8.0f);
-                        gl.Color(1.0f, 1.0f, 1.0f);
-                        gl.Begin(OpenGL.GL_POINTS);
-                        gl.Vertex(dots[iState.DotID].X, dots[iState.DotID].Y, dots[iState.DotID].Z);
-                        gl.End();
-                        break;
-                    }
-                    case TYPE.EDGE:
-                    {
-                        var dots = Primitives[iState.pID].getDots();
-                        gl.Color(1.0f, 1.0f, 1.0f);
-                        gl.LineWidth(4.0f);
-
-                        var edge = Primitives[iState.pID].getEdges()[iState.DotID];
-
-                        gl.Begin(OpenGL.GL_LINES);
-                        gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
-                        gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
-                        gl.End();
-
-                        gl.PointSize(8.0f);
-                        gl.Color(1.0f, 1.0f, 1.0f);
-                        gl.Begin(OpenGL.GL_POINTS);
-                        gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
-                        gl.End();
-                        gl.Begin(OpenGL.GL_POINTS);
-                        gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
-                        gl.End();
-
-
-
-                        break;
-                    }
-                    case TYPE.BODY:
-                    {
-
-
-                        var dots = Primitives[iState.pID].getDots();
-                        gl.Color(1.0f, 1.0f, 1.0f);
-                        gl.LineWidth(4.0f);
-
-                        foreach (var edge in Primitives[iState.pID].getEdges())
                         {
+                            var dots = Primitives[iState.pID].getDots();
+                            gl.PointSize(8.0f);
+                            gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
+                            gl.Begin(OpenGL.GL_POINTS);
+                            gl.Vertex(dots[iState.DotID].X, dots[iState.DotID].Y, dots[iState.DotID].Z);
+                            gl.End();
+                            break;
+                        }
+                    case TYPE.EDGE:
+                        {
+                            var dots = Primitives[iState.pID].getDots();
+                            gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
+                            gl.LineWidth(4.0f);
+
+                            var edge = Primitives[iState.pID].getEdges()[iState.DotID];
+
                             gl.Begin(OpenGL.GL_LINES);
                             gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
                             gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
                             gl.End();
-                        }
-                        gl.PointSize(8.0f);
-                        gl.Color(1.0f, 1.0f, 1.0f);
 
-                        for (int i = 0; i < dots.Length; i++)
-                        {
-
+                            gl.PointSize(8.0f);
+                            gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
                             gl.Begin(OpenGL.GL_POINTS);
-                            gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
+                            gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
                             gl.End();
+                            gl.Begin(OpenGL.GL_POINTS);
+                            gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                            gl.End();
+                            break;
                         }
+                    case TYPE.BODY:
+                        {
+                            var dots = Primitives[iState.pID].getDots();
+                            gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
+                            gl.LineWidth(4.0f);
 
-                        break;
+                            foreach (var edge in Primitives[iState.pID].getEdges())
+                            {
+                                gl.Begin(OpenGL.GL_LINES);
+                                gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                                gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                                gl.End();
+                            }
+                            gl.PointSize(8.0f);
+                            gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
+
+                            for (int i = 0; i < dots.Length; i++)
+                            {
+                                gl.Begin(OpenGL.GL_POINTS);
+                                gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
+                                gl.End();
+                            }
+                            break;
+                        }
+                }
+            }
+
+            for (int g = 0; g < groups.Count; g++)
+            {
+                gl.LineWidth(groupLineWidths[g]);
+
+                foreach (int primitive in groups[g])
+                {
+                    if (!drawables.Contains(primitive)) continue;
+
+                    var dots = Primitives[primitive].getDots();
+                    var color = Primitives[primitive].color;
+
+                    if (g == curGroup)
+                    {
+                        gl.Color(_activeGroupColor.X, _activeGroupColor.Y, _activeGroupColor.Z);
+                    }
+                    else
+                    {
+                        gl.Color(color.X, color.Y, color.Z);
+                    }
+
+                    foreach (var edge in Primitives[primitive].getEdges())
+                    {
+                        gl.Begin(OpenGL.GL_LINES);
+                        gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
+                        gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
+                        gl.End();
+                    }
+
+                    for (int i = 0; i < dots.Length; i++)
+                    {
+                        gl.PointSize(6.0f);
+                        gl.Color(_vertexColor.X, _vertexColor.Y, _vertexColor.Z);
+                        gl.Begin(OpenGL.GL_POINTS);
+                        gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
+                        gl.End();
                     }
                 }
             }
-            
-
-            foreach (var primitive in drawables)
-            {
-                var dots = Primitives[primitive].getDots();
-
-                var color = Primitives[primitive].color;
-
-                gl.Color(color.X, color.Y, color.Z);
-                gl.LineWidth(1.5f);
-
-
-
-
-                foreach (var edge in Primitives[primitive].getEdges())
-                {
-                    gl.Begin(OpenGL.GL_LINES);
-                    gl.Vertex(dots[edge.left].X, dots[edge.left].Y, dots[edge.left].Z);
-                    gl.Vertex(dots[edge.right].X, dots[edge.right].Y, dots[edge.right].Z);
-                    gl.End();
-                }
-                
-                
-
-                for (int i = 0; i < dots.Length; i++)
-                {
-                    gl.PointSize(4.0f);
-                    gl.Color(0.0f, 1.0f, 0.0f);
-                    gl.Begin(OpenGL.GL_POINTS);
-                    gl.Vertex(dots[i].X, dots[i].Y, dots[i].Z);
-                    gl.End();
-                }
-
-
-            }
         }
-        public void Update( Vector2 mousePosition)
+
+        public void Update(Vector2 mousePosition)
         {
             List<int> drawables = new List<int>();
             float dx = GLMousePosition.X, dy = GLMousePosition.Y;
@@ -324,24 +315,27 @@ namespace CG
 
             foreach (int i in drawables)
             {
-                var tmp = Primitives[i].intersect(GLMousePosition,iState.DotID);
+                var tmp = Primitives[i].intersect(GLMousePosition, iState.DotID);
 
-                if(tmp.right == TYPE.DOT)
+                if (tmp.right == TYPE.DOT)
                 {
                     hoverID = i;
                     hoverOn = tmp;
+                    UpdateHoverOutlineWidth(i);
                     break;
                 }
-                else if(tmp.right == TYPE.EDGE) 
+                else if (tmp.right == TYPE.EDGE)
                 {
                     hoverID = i;
                     hoverOn = tmp;
+                    UpdateHoverOutlineWidth(i);
                     continue;
                 }
-                else if(tmp.right == TYPE.BODY && (iState.pID != i)) 
+                else if (tmp.right == TYPE.BODY && (iState.pID != i))
                 {
                     hoverID = i;
                     hoverOn = tmp;
+                    UpdateHoverOutlineWidth(i);
                     continue;
                 }
             }
@@ -374,7 +368,7 @@ namespace CG
         {
             inputQueue.Enqueue(e);
         }
-        public void inputHandle() 
+        public void inputHandle()
         {
             while (inputQueue.Count > 0)
             {
@@ -396,59 +390,15 @@ namespace CG
 
                     case KEYT.UISTATE:
                         UIInputModeChangeEvent uiEvent = (UIInputModeChangeEvent)e;
-                        if (iState.Istate != uiEvent.NewState)
-                        {
-                            ApplyStateFromUI(uiEvent.NewState);
-                        }
+                        ApplyStateFromUI(uiEvent.NewState);
                         break;
 
                     case KEYT.UIGROUP:
-                        UIGroupChangeEvent groupEvent = (UIGroupChangeEvent)e;
-                        switch (groupEvent.Action)
-                        {
-                            case GROUP_ACTION.PREVIOUS:
-                                curGroup--;
-                                if (curGroup < 0) curGroup = groups.Count - 1;
-                                updateGroupNumber();
-                                break;
-
-                            case GROUP_ACTION.NEXT:
-                                curGroup++;
-                                if (curGroup > groups.Count - 1) curGroup = 0;
-                                updateGroupNumber();
-                                break;
-
-                            case GROUP_ACTION.CREATE:
-                                groups.Add(new List<int>());
-                                curGroup = groups.Count - 1;
-                                updateGroupNumber();
-                                break;
-
-                            case GROUP_ACTION.DELETE:
-                                if (groups[curGroup].Count > 0)
-                                {
-                                    var toDelete = groups[curGroup].OrderByDescending(id => id).ToList();
-                                    foreach (int id in toDelete)
-                                    {
-                                        MarkPrimitiveDeletion(id);
-                                    }
-                                    Primitives.RemoveAll(x => x == null);
-                                }
-                                else if (groups.Count > 1)
-                                {
-                                    groups.RemoveAt(curGroup);
-                                    curGroup--;
-                                    if (curGroup < 0) curGroup = 0;
-                                }
-
-                                selected.Clear();
-                                iState.SetState(ISTATE.DRAW);
-                                updateGroupNumber();
-                                break;
-                        }
+                        if (e is UILineWidthChangeEvent widthEvent)
+                            groupLineWidths[curGroup] = widthEvent.Width;
+                        else
+                            UIHandle((UIGroupChangeEvent)e);
                         break;
-
-                    
                 }
             }
         }
@@ -479,7 +429,7 @@ namespace CG
                 }
             }
         }
-        private void KeyboardHandle(KeyboardInput e) 
+        private void KeyboardHandle(KeyboardInput e)
         {
             if (e.down)
             {
@@ -488,38 +438,78 @@ namespace CG
                     case Key.T:
                         ToggleIMode();
                         break;
-                    case Key.G: 
-                    {
-                        toggleGroup();
-                        break;
-                    }
-                    case Key.F: 
-                    {
-                        groups.Add(new List<int>());
-                        curGroup = groups.Count - 1;
-                        updateGroupNumber();
-                        break;
-                    }
+                    case Key.G:
+                        {
+                            toggleGroup();
+                            break;
+                        }
+                    case Key.F:
+                        {
+                            groups.Add(new List<int>());
+                            curGroup = groups.Count - 1;
+                            updateGroupNumber();
+                            break;
+                        }
                     case Key.A:
-                    {
-                        if(iState.Istate == ISTATE.SELECTION) 
                         {
-                            for (int i = 0; i < groups[curGroup].Count; i++) 
+                            if (iState.Istate == ISTATE.SELECTION)
                             {
-                                SelectedAdd(new Selection(TYPE.BODY, groups[curGroup][i], -1));
+                                for (int i = 0; i < groups[curGroup].Count; i++)
+                                {
+                                    SelectedAdd(new Selection(TYPE.BODY, groups[curGroup][i], -1));
+                                }
                             }
+                            break;
                         }
-                        break;
-                    }
                     case Key.Delete:
-                    {
-                        if(iState.Istate == ISTATE.SELECTION) 
                         {
-                            DeleteButtonDown();
+                            if (iState.Istate == ISTATE.SELECTION)
+                            {
+                                DeleteButtonDown();
+                            }
+                            break;
                         }
-                        break;
-                    }
                 }
+            }
+        }
+        private void UIHandle(UIGroupChangeEvent e)
+        {
+            switch (e.Action)
+            {
+                case GROUP_ACTION.PREVIOUS:
+                    curGroup--;
+                    if (curGroup < 0) curGroup = groups.Count - 1;
+                    updateGroupNumber();
+                    break;
+
+                case GROUP_ACTION.NEXT:
+                    curGroup++;
+                    if (curGroup > groups.Count - 1) curGroup = 0;
+                    updateGroupNumber();
+                    break;
+
+                case GROUP_ACTION.CREATE:
+                    groups.Add(new List<int>());
+                    groupLineWidths.Add(1.5f);
+                    curGroup = groups.Count - 1;
+                    updateGroupNumber();
+                    break;
+
+                case GROUP_ACTION.DELETE:
+                    DeletePrimitivesByIDs(groups[curGroup].ToList());
+
+                    if (groups.Count > 1)
+                    {
+                        groups.RemoveAt(curGroup);
+                        groupLineWidths.RemoveAt(curGroup);
+                        curGroup--;
+                        if (curGroup < 0) curGroup = 0;
+                    }
+
+                    selected.Clear();
+                    iState.SetState(ISTATE.DRAW);
+                    updateGroupNumber();
+                    break;
             }
         }
         private void ToggleIMode()
@@ -546,14 +536,16 @@ namespace CG
                 _window.InputModeComboBox.SelectedItem = iState.Istate;
             }
         }
-        public void updateGroupNumber() 
+        public void updateGroupNumber()
         {
             _window.CurrGroup.Content = curGroup.ToString();
+
+            _window.LineWidthSlider.Value = GetCurrentGroupLineWidth();
         }
 
         private void ExecuteAction()
         {
-            Vector3 color = new Vector3(1.0f, 0.0f, 0.0f);
+            Vector3 color = _defaultLineColor;
 
             switch (iState.Istate)
             {
@@ -639,7 +631,7 @@ namespace CG
             }
         }
 
-        private void DragCameraSwitch(bool state) 
+        private void DragCameraSwitch(bool state)
         {
             dragCameraState = state;
         }
@@ -647,69 +639,64 @@ namespace CG
         {
             float cameraZ = Configs.CameraPos.Z;
             cameraZ += zoom * amount;
-            
-            if (cameraZ > -0.25f) 
+
+            if (cameraZ > -0.25f)
             {
                 cameraZ = -0.25f;
             }
             Configs.changeCameraZ(cameraZ);
         }
 
-        private void DeleteButtonDown() 
+        private void DeleteButtonDown()
         {
-            foreach (var select in selected
+            var bodyIDs = selected
                 .Where(x => x.type == TYPE.BODY)
-                .OrderByDescending(x => x.pid))
-            {
-                MarkPrimitiveDeletion(select.pid);
-            }
-            
+                .Select(x => x.pid);
+
+            DeletePrimitivesByIDs(bodyIDs);
+
 
             foreach (var select in selected
-            .Where(x => x.type == TYPE.EDGE)
-            .OrderByDescending(x => x.id))
+                .Where(x => x.type == TYPE.EDGE)
+                .OrderByDescending(x => x.id))
             {
-                if (Primitives[select.pid] != null)
+                if (select.pid < Primitives.Count && Primitives[select.pid] != null)
                     Primitives[select.pid].removeEdge(select.id);
             }
-
-
 
             foreach (var select in selected
                 .Where(x => x.type == TYPE.DOT)
                 .OrderByDescending(x => x.id))
             {
-
-                Primitives[select.pid].removeDot(select.id);
-
+                if (select.pid < Primitives.Count && Primitives[select.pid] != null)
+                    Primitives[select.pid].removeDot(select.id);
             }
 
-            Primitives.RemoveAll(x => x == null);
             selected.Clear();
         }
 
-        private void SelectedAdd(Selection select) 
+        private void SelectedAdd(Selection select)
         {
-            switch (select.type) 
+            switch (select.type)
             {
                 case TYPE.BODY:
-                {
-                    selected.RemoveAll(x => x.pid == select.pid);
-                    selected.Add(select);
-                    break;
-                }
+                    {
+                        selected.RemoveAll(x => x.pid == select.pid);
+                        selected.Add(select);
+                        break;
+                    }
                 case TYPE.DOT:
                 case TYPE.EDGE:
-                {
-                    if (!selected.Contains(select) && !selected.Any(x => x.pid == select.pid && x.type == TYPE.BODY))
                     {
-                        selected.Add(select);
+                        if (!selected.Contains(select) && !selected.Any(x => x.pid == select.pid && x.type == TYPE.BODY))
+                        {
+                            selected.Add(select);
+                        }
+                        break;
                     }
-                    break;
-                }
             }
         }
-        private Primitive AddPrimitive(Vector3 dot, Vector3 color) 
+        private Primitive AddPrimitive(Vector3 dot, Vector3 color)
         {
             Primitive line = new Primitive(dot, color);
             Primitives.Add(line);
@@ -717,7 +704,7 @@ namespace CG
             return line;
         }
 
-        private void toggleGroup() 
+        private void toggleGroup()
         {
             curGroup++;
             if (curGroup > groups.Count - 1)
@@ -726,45 +713,63 @@ namespace CG
             }
             updateGroupNumber();
         }
-        private void MarkPrimitiveDeletion(int id)
-        {
-            if (id >= 0 && id < Primitives.Count && Primitives[id] != null)
-            {
-                for (int i = 0; i < groups.Count; i++)
-                {
-                    var j = groups[i].IndexOf(id);
-                    if (j != -1)
-                    {
-                        groups[i].RemoveAt(j);
 
-                        if (groups[i].Count == 0 && groups.Count > 1)
-                        {
-                            groups.RemoveAt(i);
-                            if (curGroup >= groups.Count) curGroup = groups.Count - 1;
-                            updateGroupNumber();
-                        }
-                        break;
-                    }
-                }
 
-                Primitives[id] = null;
-
-                for (int i = 0; i < groups.Count; i++)
-                {
-                    for (int j = 0; j < groups[i].Count; j++)
-                    {
-                        if (groups[i][j] > id)
-                        {
-                            groups[i][j]--;
-                        }
-                    }
-                }
-            }
-        }
         public void ApplyStateFromUI(ISTATE state)
         {
             iState.SetState(state);
         }
+        private void DeletePrimitivesByIDs(IEnumerable<int> ids)
+        {
+            var toDelete = ids.OrderByDescending(id => id).ToList();
 
+            foreach (int id in toDelete)
+            {
+                MarkPrimitiveDeletion(id);
+            }
+
+            Primitives.RemoveAll(x => x == null);
+        }
+        private void MarkPrimitiveDeletion(int id)
+        {
+            for (int i = 0; i < groups.Count; i++)
+            {
+                var j = groups[i].IndexOf(id);
+                if (j != -1)
+                {
+                    groups[i].RemoveAt(j);
+                    break;
+                }
+            }
+            Primitives[id] = null;
+
+            for (int i = 0; i < groups.Count; i++)
+            {
+                for (int j = 0; j < groups[i].Count; j++)
+                {
+                    if (groups[i][j] > id)
+                    {
+                        groups[i][j]--;
+                    }
+                }
+            }
+        }
+
+        private void UpdateHoverOutlineWidth(int i)
+        {
+            for (int g = 0; g < groups.Count; g++)
+            {
+                if (groups[g].Contains(i))
+                {
+                    hoverObjectWidth = groupLineWidths[g];
+                    break;
+                }
+            }
+        }
+
+        public float GetCurrentGroupLineWidth()
+        {
+            return groupLineWidths[curGroup];
+        }
     }
 }

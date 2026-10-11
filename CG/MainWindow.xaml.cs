@@ -88,5 +88,13 @@ namespace CG // Укажите ваше имя проекта
         {
             handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.DELETE));
         }
+
+        private void LineWidthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (handler != null)
+            {
+                handler.addToInputQueue(new UILineWidthChangeEvent((float)e.NewValue));
+            }
+        }
     }
 }
