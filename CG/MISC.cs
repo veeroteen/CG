@@ -158,7 +158,8 @@ public enum KEYT
     MOUSE,
     WHEEL,
     KEYBOARD,
-    UI // Источник события — комбобокс на экране
+    UISTATE,
+    UIGROUP
 }
 
 public abstract class InputEvent
@@ -205,7 +206,25 @@ public class UIInputModeChangeEvent : InputEvent
     public CG.ISTATE NewState { get; }
     public UIInputModeChangeEvent(CG.ISTATE newState)
     {
-        Itype = KEYT.UI;
+        Itype = KEYT.UISTATE;
         NewState = newState;
+    }
+}
+
+public enum GROUP_ACTION
+{
+    PREVIOUS,
+    NEXT,
+    CREATE,
+    DELETE
+}
+
+public class UIGroupChangeEvent : InputEvent
+{
+    public GROUP_ACTION Action { get; }
+    public UIGroupChangeEvent(GROUP_ACTION action)
+    {
+        Itype = KEYT.UIGROUP;
+        Action = action;
     }
 }

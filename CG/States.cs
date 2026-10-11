@@ -48,5 +48,6 @@ namespace CG
             type = TYPE.DOT;
             callback();
         }
+
     }
 }

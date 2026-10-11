@@ -61,12 +61,32 @@ namespace CG // Укажите ваше имя проекта
 
         private void InputModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (handler != null && InputModeComboBox.SelectedItem is ISTATE selectedState)
+            if (InputModeComboBox.SelectedItem is ISTATE selectedState)
             {
                 handler.addToInputQueue(new UIInputModeChangeEvent(selectedState));
 
                 openGLControl.Focus();
             }
+        }
+
+        private void PrevGroup_Click(object sender, RoutedEventArgs e)
+        {
+            handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.PREVIOUS));
+        }
+
+        private void NextGroup_Click(object sender, RoutedEventArgs e)
+        {
+             handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.NEXT));
+        }
+
+        private void CurrGroup_Click(object sender, RoutedEventArgs e)
+        {
+            handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.CREATE));
+        }
+
+        private void DeleteGroup_Click(object sender, RoutedEventArgs e)
+        {
+            handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.DELETE));
         }
     }
 }

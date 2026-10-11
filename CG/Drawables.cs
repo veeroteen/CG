@@ -21,7 +21,6 @@ namespace CG
         BODY
     }
 
-
     public static class Configs 
     {
         private static float _mouseRadius = 4;
@@ -74,10 +73,6 @@ namespace CG
         private static Rect _screenRect = new Rect();
 
         public static ref readonly Rect ScreenRect => ref _screenRect;
-
-
-
-
 
         private static Vector3 _cameraPos = new Vector3(0,0,-5.0f);
         public static void changeCameraZ(float z)

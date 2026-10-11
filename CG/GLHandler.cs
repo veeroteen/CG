@@ -346,16 +346,10 @@ namespace CG
                 }
             }
 
-            
-
-            
-
-
             gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT | OpenGL.GL_DEPTH_BUFFER_BIT);
             gl.LoadIdentity();
 
             gl.Translate(Configs.CameraPos.X, Configs.CameraPos.Y, Configs.CameraPos.Z);
-
 
             if (iState.pID != -1)
             {
@@ -387,33 +381,74 @@ namespace CG
                 var e = inputQueue.Dequeue();
                 switch (e.Itype)
                 {
-                    case KEYT.MOUSE: 
-                    {
+                    case KEYT.MOUSE:
                         MouseHandle((MouseKeyInput)e);
                         break;
-                    }
+
                     case KEYT.KEYBOARD:
-                    {
                         KeyboardHandle((KeyboardInput)e);
                         break;
-                    }
+
                     case KEYT.WHEEL:
-                    {
                         MouseWheelInput wheelInput = (MouseWheelInput)e;
                         ChangeScale(wheelInput.delta > 0 ? 1 : -1);
                         break;
-                    }
-                    case KEYT.UI:
-                    {
+
+                    case KEYT.UISTATE:
                         UIInputModeChangeEvent uiEvent = (UIInputModeChangeEvent)e;
                         if (iState.Istate != uiEvent.NewState)
                         {
                             ApplyStateFromUI(uiEvent.NewState);
                         }
                         break;
-                    }
 
+                    case KEYT.UIGROUP:
+                        UIGroupChangeEvent groupEvent = (UIGroupChangeEvent)e;
+                        switch (groupEvent.Action)
+                        {
+                            case GROUP_ACTION.PREVIOUS:
+                                curGroup--;
+                                if (curGroup < 0) curGroup = groups.Count - 1;
+                                updateGroupNumber();
+                                break;
 
+                            case GROUP_ACTION.NEXT:
+                                curGroup++;
+                                if (curGroup > groups.Count - 1) curGroup = 0;
+                                updateGroupNumber();
+                                break;
+
+                            case GROUP_ACTION.CREATE:
+                                groups.Add(new List<int>());
+                                curGroup = groups.Count - 1;
+                                updateGroupNumber();
+                                break;
+
+                            case GROUP_ACTION.DELETE:
+                                if (groups[curGroup].Count > 0)
+                                {
+                                    var toDelete = groups[curGroup].OrderByDescending(id => id).ToList();
+                                    foreach (int id in toDelete)
+                                    {
+                                        MarkPrimitiveDeletion(id);
+                                    }
+                                    Primitives.RemoveAll(x => x == null);
+                                }
+                                else if (groups.Count > 1)
+                                {
+                                    groups.RemoveAt(curGroup);
+                                    curGroup--;
+                                    if (curGroup < 0) curGroup = 0;
+                                }
+
+                                selected.Clear();
+                                iState.SetState(ISTATE.DRAW);
+                                updateGroupNumber();
+                                break;
+                        }
+                        break;
+
+                    
                 }
             }
         }
@@ -513,7 +548,7 @@ namespace CG
         }
         public void updateGroupNumber() 
         {
-            _window.CurrentGroup.Text = curGroup.ToString();
+            _window.CurrGroup.Content = curGroup.ToString();
         }
 
         private void ExecuteAction()
@@ -691,23 +726,40 @@ namespace CG
             }
             updateGroupNumber();
         }
-        private void MarkPrimitiveDeletion(int id) 
+        private void MarkPrimitiveDeletion(int id)
         {
-            for (int i = 0; i < groups.Count; i++) 
+            if (id >= 0 && id < Primitives.Count && Primitives[id] != null)
             {
-                var j = groups[i].IndexOf(id);
-                if (j != -1)
+                for (int i = 0; i < groups.Count; i++)
                 {
-                    groups[i].RemoveAt(j);
-                    if (groups[i].Count == 0 && i != 0 ) 
+                    var j = groups[i].IndexOf(id);
+                    if (j != -1)
                     {
-                        groups.RemoveAt(i);
-                        toggleGroup();
+                        groups[i].RemoveAt(j);
+
+                        if (groups[i].Count == 0 && groups.Count > 1)
+                        {
+                            groups.RemoveAt(i);
+                            if (curGroup >= groups.Count) curGroup = groups.Count - 1;
+                            updateGroupNumber();
+                        }
+                        break;
                     }
-                    break;
+                }
+
+                Primitives[id] = null;
+
+                for (int i = 0; i < groups.Count; i++)
+                {
+                    for (int j = 0; j < groups[i].Count; j++)
+                    {
+                        if (groups[i][j] > id)
+                        {
+                            groups[i][j]--;
+                        }
+                    }
                 }
             }
-            Primitives[id] = null;
         }
         public void ApplyStateFromUI(ISTATE state)
         {
