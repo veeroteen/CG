@@ -523,14 +523,19 @@ namespace CG
                         curGroup--;
                         if (curGroup < 0) curGroup = 0;
                     }
+                    else if (groups.Count == 1)
+                    {
+                        groupsColor[curGroup] = _defaultLineColor;
+                        groupLineWidths[curGroup] = 1.5f;
+                    }
 
                     selected.Clear();
                     iState.SetState(ISTATE.DRAW);
                     updateGroupNumber();
                     break;
-                case GROUP_ACTION.CHANGE_COLOR:
+                case GROUP_ACTION.CHANGE_GROUP:
                     groupsColor[curGroup] = e.vector;
-
+                    groupLineWidths[curGroup] = e.value;
                     break;
             }
         }
@@ -566,8 +571,6 @@ namespace CG
         public void updateGroupNumber()
         {
             _window.CurrGroup.Content = curGroup.ToString();
-
-            _window.LineWidthSlider.Value = GetCurrentGroupLineWidth();
         }
         public float GetCurrentGroupLineWidth()
         {

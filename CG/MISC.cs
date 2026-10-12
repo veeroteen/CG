@@ -218,7 +218,7 @@ public enum GROUP_ACTION
     CREATE,
     DELETE,
     WIDTH,
-    CHANGE_COLOR
+    CHANGE_GROUP
 }
 
 
@@ -228,14 +228,16 @@ public class UIGroupChangeEvent : InputEvent
 {
     public GROUP_ACTION Action { get; }
     public Vector3 vector { get; }
+    public float value { get; }
     public UIGroupChangeEvent(GROUP_ACTION action)
     {
         Itype = KEYT.UIGROUP;
         Action = action;
     }
-    public UIGroupChangeEvent(GROUP_ACTION action, Vector3 vector)
+    public UIGroupChangeEvent(GROUP_ACTION action, Vector3 vector, float value)
     {
         this.vector = vector;
+        this.value = value;
         Itype = KEYT.UIGROUP;
         Action = action;
     }

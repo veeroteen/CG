@@ -7,7 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace CG // Укажите ваше имя проекта
+namespace CG
 {
     public partial class MainWindow : Window
     {
@@ -98,7 +98,7 @@ namespace CG // Укажите ваше имя проекта
             }
         }
 
-        private void ChangeGroupColor_Click(object sender, RoutedEventArgs e)
+        private void ChangeGroup_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new RgbColorWindow
             {
@@ -108,7 +108,8 @@ namespace CG // Укажите ваше имя проекта
             if (dialog.ShowDialog() == true)
             {
                 Color color = dialog.SelectedColor;
-                handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.CHANGE_COLOR,new Vector3(color.R/255.0f,color.G/255.0f,color.B/255.0f)));
+                float width = dialog.SelectedWidth;
+                handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.CHANGE_GROUP,new Vector3(color.R/255.0f,color.G/255.0f,color.B/255.0f), width));
             }
         }
 

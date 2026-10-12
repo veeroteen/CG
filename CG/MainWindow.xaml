@@ -36,8 +36,8 @@
                     </MenuItem>
                     <MenuItem Header="Удалить текущую группу" Click="DeleteGroup_Click"/>
                     
-                    <MenuItem Header="Сменить цвет текущей группы"
-                      Click="ChangeGroupColor_Click"/>
+                    <MenuItem Header="Модифицировать текущую группу"
+                      Click="ChangeGroup_Click"/>
                 </ContextMenu>
             </sharpgl:OpenGLControl.ContextMenu>
         </sharpgl:OpenGLControl>
@@ -51,25 +51,8 @@
             SelectionChanged="InputModeComboBox_SelectionChanged" Background="#E61F1F1F" BorderBrush="#FF4A4A4A"
         />
         <Button Content="&lt;" Height="25" Width="20" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,79,0" Focusable="False" Click="PrevGroup_Click"/>
-        <Button x:Name="CurrGroup" Content="2222" Height="25" Width="40" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,39,0" Focusable="False" Click="CurrGroup_Click">
-            <Button.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="Удалить группу" Click="DeleteGroup_Click"/>
-                </ContextMenu>
-            </Button.ContextMenu>
-        </Button>
+        <Button x:Name="CurrGroup" Content="2222" Height="25" Width="40" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,39,0" Focusable="False" Click="CurrGroup_Click"/>
         <Button Content="&gt;" Height="25" Width="20" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,19,0" Focusable="False" Click="NextGroup_Click"/>
-        <Slider x:Name="LineWidthSlider" 
-        HorizontalAlignment="Right" 
-        Margin="0,35,19,0" 
-        VerticalAlignment="Top" 
-        Width="80" 
-        Minimum="1" 
-        Maximum="10" 
-        Value="1.5" 
-        TickFrequency="0.1" 
-        IsSnapToTickEnabled="True" 
-        ValueChanged="LineWidthSlider_ValueChanged"
-        />
+        
     </Grid>
 </Window>

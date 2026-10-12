@@ -9,6 +9,7 @@ namespace CG
         public byte Red { get; private set; }
         public byte Green { get; private set; }
         public byte Blue { get; private set; }
+        public float Width { get; private set; }
 
         public RgbColorWindow()
         {
@@ -33,11 +34,14 @@ namespace CG
             Red = r;
             Green = g;
             Blue = b;
+            Width = (float)LineWidthSlider.Value;
 
             DialogResult = true;
         }
 
         public Color SelectedColor =>
             Color.FromRgb(Red, Green, Blue);
+
+        public float SelectedWidth => Width;
     }
 }
