@@ -66,6 +66,14 @@ namespace CG
         {
             foreach (var s in selected)
             {
+                float width = 0;
+                for (int i = 0; i < groupLineWidths.Count; i++)
+                {
+                    if (groups[i].Contains(s.pid))
+                    {
+                        width = groupLineWidths[i];
+                    }
+                }
                 var dots = Primitives[s.pid].getDots();
                 var edges = Primitives[s.pid].getEdges();
                 switch (s.type)
@@ -73,7 +81,7 @@ namespace CG
                     case TYPE.BODY:
                         {
                             gl.Color(_selectedColor.X, _selectedColor.Y, _selectedColor.Z);
-                            gl.LineWidth(4.0f);
+                            gl.LineWidth(4.0f + width);
                             foreach (var edge in edges)
                             {
                                 gl.Begin(OpenGL.GL_LINES);
@@ -104,7 +112,7 @@ namespace CG
                     case TYPE.EDGE:
                         {
                             gl.Color(_selectedColor.X, _selectedColor.Y, _selectedColor.Z);
-                            gl.LineWidth(4.0f);
+                            gl.LineWidth(4.0f + width);
                             gl.Begin(OpenGL.GL_LINES);
                             gl.Vertex(dots[edges[s.id].left].X, dots[edges[s.id].left].Y, dots[edges[s.id].left].Z);
                             gl.Vertex(dots[edges[s.id].right].X, dots[edges[s.id].right].Y, dots[edges[s.id].right].Z);
@@ -176,6 +184,15 @@ namespace CG
 
             if (iState.Istate == ISTATE.MOVE && iState.pID != -1)
             {
+                float width = 0;
+                for (int i = 0; i < groupLineWidths.Count; i++)
+                {
+                    if (groups[i].Contains(iState.pID))
+                    {
+                        width = groupLineWidths[i];
+                    }
+                }
+
                 switch (iState.type)
                 {
                     case TYPE.DOT:
@@ -192,7 +209,7 @@ namespace CG
                         {
                             var dots = Primitives[iState.pID].getDots();
                             gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
-                            gl.LineWidth(4.0f);
+                            gl.LineWidth(4.0f + width);
 
                             var edge = Primitives[iState.pID].getEdges()[iState.DotID];
 
@@ -215,7 +232,7 @@ namespace CG
                         {
                             var dots = Primitives[iState.pID].getDots();
                             gl.Color(_hoverColor.X, _hoverColor.Y, _hoverColor.Z);
-                            gl.LineWidth(4.0f);
+                            gl.LineWidth(4.0f + width);
 
                             foreach (var edge in Primitives[iState.pID].getEdges())
                             {
@@ -446,6 +463,7 @@ namespace CG
                     case Key.F:
                         {
                             groups.Add(new List<int>());
+                            groupLineWidths.Add(1.5f);
                             curGroup = groups.Count - 1;
                             updateGroupNumber();
                             break;
@@ -552,12 +570,12 @@ namespace CG
                 case ISTATE.DRAW:
                     if (iState.pID != -1)
                     {
-                        if (!Primitives[iState.pID].snap(hoverOn, iState.DotID))
+                        if (iState.pID != hoverID)
                         {
                             Primitives[iState.pID].addDot(GLMousePosition, iState.DotID);
                             iState.SetActiveDrawPrimitive(iState.pID, Primitives[iState.pID].getAmOfDots() - 1);
                         }
-                        else
+                        else if(Primitives[iState.pID].snap(hoverOn, iState.DotID))
                         {
                             Primitives[iState.pID].recalcCenter();
                             iState.SetState(ISTATE.DRAW);

@@ -276,7 +276,7 @@ namespace CG
             }
             foreach(int d in tmp) 
             {
-                if(d < 2) 
+                if(d != 2) 
                 {
                     return false;
                 }
