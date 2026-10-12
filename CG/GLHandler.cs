@@ -569,6 +569,10 @@ namespace CG
 
             _window.LineWidthSlider.Value = GetCurrentGroupLineWidth();
         }
+        public float GetCurrentGroupLineWidth()
+        {
+            return groupLineWidths[curGroup];
+        }
 
         private void ExecuteAction()
         {
@@ -793,9 +797,5 @@ namespace CG
             }
         }
 
-        public float GetCurrentGroupLineWidth()
-        {
-            return groupLineWidths[curGroup];
-        }
     }
 }
