@@ -5,6 +5,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace CG // Укажите ваше имя проекта
 {
@@ -76,7 +77,7 @@ namespace CG // Укажите ваше имя проекта
 
         private void NextGroup_Click(object sender, RoutedEventArgs e)
         {
-             handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.NEXT));
+            handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.NEXT));
         }
 
         private void CurrGroup_Click(object sender, RoutedEventArgs e)
@@ -95,6 +96,33 @@ namespace CG // Укажите ваше имя проекта
             {
                 handler.addToInputQueue(new UILineWidthChangeEvent((float)e.NewValue));
             }
+        }
+
+        private void ChangeGroupColor_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new RgbColorWindow
+            {
+                Owner = this
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                Color color = dialog.SelectedColor;
+                handler.addToInputQueue(new UIGroupChangeEvent(GROUP_ACTION.CHANGE_COLOR,new Vector3(color.R/255.0f,color.G/255.0f,color.B/255.0f)));
+            }
+        }
+
+        private void ChangeModeDraw(object sender, RoutedEventArgs e)
+        {
+            handler.SetMode(ISTATE.DRAW);
+        }
+        private void ChangeModeSelect(object sender, RoutedEventArgs e)
+        {
+            handler.SetMode(ISTATE.SELECTION);
+        }
+        private void ChangeModeMove(object sender, RoutedEventArgs e)
+        {
+            handler.SetMode(ISTATE.MOVE);
         }
     }
 }

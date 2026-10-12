@@ -20,6 +20,7 @@ namespace CG
         private List<Primitive> Primitives;
         private List<List<int>> groups;
         private List<float> groupLineWidths;
+        private List<Vector3> groupsColor;
         private int curGroup = 0;
         private OSTATE oState = OSTATE.MESH;
         private IState iState;
@@ -36,7 +37,6 @@ namespace CG
         private readonly Vector3 _hoverColor = new Vector3(1.0f, 1.0f, 1.0f);
         private readonly Vector3 _vertexColor = new Vector3(0.0f, 1.0f, 0.0f);
 
-        private readonly Vector3 _activeGroupColor = new Vector3(1.0f, 0.0f, 0.0f);
         private readonly Vector3 _defaultLineColor = new Vector3(1.0f, 0.3f, 0.3f);
 
         private float hoverObjectWidth = 1.5f;
@@ -46,6 +46,8 @@ namespace CG
             selected = new List<Selection>();
             groups = new List<List<int>>();
             groups.Add(new List<int>());
+            groupsColor = new List<Vector3>();
+            
 
             iState = new IState(updateIO, ISTATE.DRAW);
 
@@ -58,6 +60,7 @@ namespace CG
 
             groupLineWidths = new List<float>();
             groupLineWidths.Add(1.5f);
+            groupsColor.Add(_defaultLineColor);
             updateGroupNumber();
 
         }
@@ -258,22 +261,17 @@ namespace CG
             for (int g = 0; g < groups.Count; g++)
             {
                 gl.LineWidth(groupLineWidths[g]);
-
+                var color = groupsColor[g];
                 foreach (int primitive in groups[g])
                 {
                     if (!drawables.Contains(primitive)) continue;
 
                     var dots = Primitives[primitive].getDots();
-                    var color = Primitives[primitive].color;
+                    
 
-                    if (g == curGroup)
-                    {
-                        gl.Color(_activeGroupColor.X, _activeGroupColor.Y, _activeGroupColor.Z);
-                    }
-                    else
-                    {
-                        gl.Color(color.X, color.Y, color.Z);
-                    }
+
+                    gl.Color(color.X, color.Y, color.Z);
+                    
 
                     foreach (var edge in Primitives[primitive].getEdges())
                     {
@@ -464,6 +462,7 @@ namespace CG
                         {
                             groups.Add(new List<int>());
                             groupLineWidths.Add(1.5f);
+                            groupsColor.Add(_defaultLineColor);
                             curGroup = groups.Count - 1;
                             updateGroupNumber();
                             break;
@@ -509,6 +508,7 @@ namespace CG
                 case GROUP_ACTION.CREATE:
                     groups.Add(new List<int>());
                     groupLineWidths.Add(1.5f);
+                    groupsColor.Add(_defaultLineColor);
                     curGroup = groups.Count - 1;
                     updateGroupNumber();
                     break;
@@ -528,6 +528,10 @@ namespace CG
                     iState.SetState(ISTATE.DRAW);
                     updateGroupNumber();
                     break;
+                case GROUP_ACTION.CHANGE_COLOR:
+                    groupsColor[curGroup] = e.vector;
+
+                    break;
             }
         }
         private void ToggleIMode()
@@ -536,6 +540,11 @@ namespace CG
             else if (iState.Istate == ISTATE.MOVE) iState.SetState(ISTATE.SELECTION);
             else if (iState.Istate == ISTATE.SELECTION) iState.SetState(ISTATE.DRAW);
         }
+        public void SetMode(ISTATE state) 
+        {
+            iState.SetState(state);
+        }
+
 
         public void updateIO()
         {
@@ -563,7 +572,6 @@ namespace CG
 
         private void ExecuteAction()
         {
-            Vector3 color = _defaultLineColor;
 
             switch (iState.Istate)
             {
@@ -585,7 +593,7 @@ namespace CG
                     {
                         if (hoverID == -1)
                         {
-                            Primitive line = AddPrimitive(GLMousePosition, color);
+                            Primitive line = AddPrimitive(GLMousePosition);
                             line.addDot(GLMousePosition, 0);
                             iState.SetActiveDrawPrimitive(Primitives.Count - 1, line.getDots().Length - 1);
                         }
@@ -714,9 +722,9 @@ namespace CG
                     }
             }
         }
-        private Primitive AddPrimitive(Vector3 dot, Vector3 color)
+        private Primitive AddPrimitive(Vector3 dot)
         {
-            Primitive line = new Primitive(dot, color);
+            Primitive line = new Primitive(dot);
             Primitives.Add(line);
             groups[curGroup].Add(Primitives.Count - 1);
             return line;

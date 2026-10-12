@@ -1,0 +1,50 @@
+﻿<Window x:Class="CG.RgbColorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Изменение цвета"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+
+    <Grid Margin="15">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="100"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Label Grid.Row="0" Grid.Column="0"
+               Content="Красный (R):"
+               VerticalAlignment="Center"/>
+        <TextBox x:Name="RedBox"
+                 Grid.Row="0" Grid.Column="1"
+                 Margin="5" Text="255"/>
+
+        <Label Grid.Row="1" Grid.Column="0"
+               Content="Зелёный (G):"
+               VerticalAlignment="Center"/>
+        <TextBox x:Name="GreenBox"
+                 Grid.Row="1" Grid.Column="1"
+                 Margin="5" Text="255"/>
+
+        <Label Grid.Row="2" Grid.Column="0"
+               Content="Синий (B):"
+               VerticalAlignment="Center"/>
+        <TextBox x:Name="BlueBox"
+                 Grid.Row="2" Grid.Column="1"
+                 Margin="5" Text="255"/>
+
+        <Button Grid.Row="3" Grid.ColumnSpan="2"
+                Content="Принять"
+                IsDefault="True"
+                Margin="5,10,5,0"
+                Padding="15,5"
+                Click="Accept_Click"/>
+    </Grid>
+</Window>

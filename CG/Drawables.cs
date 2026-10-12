@@ -125,7 +125,6 @@ namespace CG
         private Rect _box;
         private Vector3 _center;
         public bool closed { private set; get; }
-        public Vector3 color;
         public ref readonly Rect Box => ref _box;
         public ref readonly Vector3 Center => ref _center;
         private Primitive()
@@ -133,14 +132,13 @@ namespace CG
             Edges = new List<Pair<int, int>>();
             Dots = new List<Vector3>();
         }
-        public Primitive(Vector3 dot, Vector3 color)
+        public Primitive(Vector3 dot)
         {
             
             Edges = new List<Pair<int,int>>();
             Dots = new List<Vector3>();
             Dots.Add(dot);
             _center = dot;
-            this.color = color;
             _box = new Rect(dot.X, dot.Y, dot.X, dot.Y);
         }
         public void addDot(Vector3 dot, int scopedTo = -1)

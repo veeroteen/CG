@@ -21,7 +21,27 @@
             Keyboard.KeyDown="openGLControl_KeyDown"
             Keyboard.KeyUp="openGLControl_KeyUp"
             SizeChanged="openGLControl_SizeChanged"
-        />
+            >
+            <sharpgl:OpenGLControl.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Сменить режим">
+                        <MenuItem Header="DRAW"
+                        Click="ChangeModeDraw"/>
+
+                        <MenuItem Header="SELECTION"
+                        Click="ChangeModeSelect"/>
+
+                        <MenuItem Header="MOVE"
+                        Click="ChangeModeMove"/>
+                    </MenuItem>
+                    <MenuItem Header="Удалить текущую группу" Click="DeleteGroup_Click"/>
+                    
+                    <MenuItem Header="Сменить цвет текущей группы"
+                      Click="ChangeGroupColor_Click"/>
+                </ContextMenu>
+            </sharpgl:OpenGLControl.ContextMenu>
+        </sharpgl:OpenGLControl>
+            
         <ComboBox
             x:Name="InputModeComboBox"
             HorizontalAlignment="Left"
